@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  uid       Int     @id @default(autoincrement())
+  email     String? @db.VarChar(255)
+  user_type Int?
+  password  String? @db.VarChar(255)
+
+  @@map("users")
+}
+
+model Faculty {
+  faculty_id         Int                @id @default(autoincrement())
+  uid                Int?
+  faculty_clg_id     String?            @db.VarChar(100)
+  name               String?            @db.VarChar(255)
+  contact            String?            @db.VarChar(11)
+  ftype_id           Int?
+  role               String?            @db.VarChar(150)
+  depart_id          Int?
+  previlage          Int?
+  joining_date       DateTime?          @db.Date
+  shift_id           Int?
+  gender             String?            @db.VarChar(20)
+  dob                DateTime?          @db.Date
+  qualification      String?            @db.VarChar(255)
+  pan_no             String?            @db.VarChar(50)
+  aadhar_card        String?            @db.VarChar(50)
+  blood_group        String?            @db.VarChar(5)
+  permanent_address  String?            @db.Text
+  current_address    String?            @db.Text
+  alternate_mobile   String?            @db.VarChar(15)
+  experience_details String?            @db.Text
+  photo              String?            @db.Text
+  signature          String?            @db.Text
+  cv                 String?            @db.Text
+  email              String?            @db.VarChar(255)
+  branch_id          Int?
+  status             Int?               @default(1) @db.TinyInt
+  constraints        FacultyConstraint?
+
+  @@map("faculty")
+}
+
+model Subject {
+  id               Int     @id @default(autoincrement())
+  subject_code     String  @db.VarChar(200)
+  subject_name     String? @db.VarChar(255)
+  semester         Int?
+  branch_id        Int?
+  acad_year        String? @db.VarChar(100)
+  experiments      String? @db.Text
+  num_experiments  Int?
+  num_assignments  Int?
+  theory           String? @db.Text
+  num_modules      Int?
+  professor_assign String? @db.VarChar(255)
+  totalcredits     Float?
+  max_marks        Int?    @default(0)
+  isoral           String? @default("No") @db.VarChar(20)
+  ispractical      String? @default("No") @db.VarChar(20)
+  oral_marks       Int?    @default(0)
+  practical_marks  Int?    @default(0)
+  passing_marks    Int?
+
+  @@map("subjects")
+}
+
+model TblTimeTable {
+  id           BigInt             @id @default(autoincrement())
+  dateOfWeek   DayOfWeek?
+  fromDate     DateTime?
+  toDate       DateTime?
+  branch_id    Int?
+  sem          String?            @db.VarChar(2)
+  division     String?            @db.VarChar(2)
+  academic_id  Int?
+  createdBy    BigInt?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  time_details TimeTimeDetailed[]
+
+  @@map("tbl_time_table")
+}
+
+model TimeTimeDetailed {
+  id               BigInt                  @id @default(autoincrement())
+  timetable_id     BigInt?
+  startTimeHr      Int?
+  startTimeMinutes Int?
+  endTimeHr        Int?
+  endTimeMinutes   Int?
+  createdBy        BigInt?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  batch_subjects   TimeTableBatchSubject[]
+  timetable        TblTimeTable?           @relation(fields: [timetable_id], references: [id])
+
+  @@index([timetable_id], map: "time_time_detailed_timetable_id_fkey")
+  @@map("time_time_detailed")
+}
+
+model TimeTableBatchSubject {
+  id                     BigInt            @id @default(autoincrement())
+  time_table_detailed_id BigInt?
+  typeOfLecture          LectureType?
+  subjectCode            String?           @db.VarChar(100)
+  facultyid              BigInt?
+  batch                  String?           @db.VarChar(2)
+  createdBy              BigInt?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  is_extra               Int?              @default(0)
+  lect_on_dehalf         BigInt?
+  reason                 String?           @db.VarChar(1000)
+  room_number            String?           @db.VarChar(10)
+  time_slot              TimeTimeDetailed? @relation(fields: [time_table_detailed_id], references: [id])
+
+  @@index([time_table_detailed_id], map: "time_table_batch_subject_time_table_detailed_id_fkey")
+  @@map("time_table_batch_subject")
+}
+
+model CopoUserCourse {
+  usercourse_id Int       @id @default(autoincrement())
+  course_id     Int?
+  semester      Int?
+  academic_year String?   @db.VarChar(255)
+  branch        Int?
+  co_count      Int?
+  created_at    DateTime?
+
+  @@map("copo_user_course")
+}
+
+model CopoUserCourseUsers {
+  id_usercourse_users Int @id @default(autoincrement())
+  usercourse_id       Int
+  user_id             Int
+
+  @@map("copo_usercourse_users")
+}
+
+model Holiday {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @db.Date
+  name          String   @db.VarChar(255)
+  type          String?  @default("National") @db.VarChar(50)
+  description   String?  @db.Text
+  academic_year String?  @db.VarChar(10)
+  created_at    DateTime @default(now())
+
+  @@map("holidays")
+}
+
+model FacultyConstraint {
+  id                      Int      @id @default(autoincrement())
+  faculty_id              Int      @unique
+  max_lectures_per_day    Int      @default(4)
+  total_lectures_per_week Int      @default(16)
+  unavailable_slots       Json?
+  preferred_slots         Json?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  faculty                 Faculty  @relation(fields: [faculty_id], references: [faculty_id])
+
+  @@map("faculty_constraints")
+}
+
+model FcmToken {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  token      String   @db.Text
+  updated_at DateTime @updatedAt
+
+  @@map("fcm_tokens")
+}
+
+model Room {
+  id           Int     @id @default(autoincrement())
+  room_number  String  @db.VarChar(20)
+  name         String? @db.VarChar(100)
+  capacity     Int?
+  room_type    String? @default("Classroom") @db.VarChar(30)
+  branch_id    Int?
+  floor        String? @db.VarChar(10)
+  is_active    Int?    @default(1) @db.TinyInt
+
+  @@map("rooms")
+}
+
+model TimeSlotTemplate {
+  id               Int      @id @default(autoincrement())
+  label            String?  @db.VarChar(50)
+  startTimeHr      Int
+  startTimeMinutes Int      @default(0)
+  endTimeHr        Int
+  endTimeMinutes   Int      @default(0)
+  is_break         Int?     @default(0) @db.TinyInt
+  sort_order       Int?     @default(0)
+  is_active        Int?     @default(1) @db.TinyInt
+
+  @@map("time_slot_templates")
+}
+
+enum DayOfWeek {
+  Sunday
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+}
+
+enum LectureType {
+  Lecture
+  Lab
+}
