@@ -1,12 +1,34 @@
 const prisma = require('../config/prisma');
 
+async function resolveFacultyIdMaybeUid(rawId) {
+  const candidate = parseInt(rawId, 10);
+  if (Number.isNaN(candidate)) return null;
+
+  const byFacultyId = await prisma.faculty.findUnique({
+    where: { faculty_id: candidate },
+    select: { faculty_id: true },
+  });
+  if (byFacultyId) return byFacultyId.faculty_id;
+
+  const byUserId = await prisma.faculty.findFirst({
+    where: { uid: candidate },
+    select: { faculty_id: true },
+  });
+
+  return byUserId?.faculty_id ?? null;
+}
+
 // ── GET /api/constraints/:facultyId ─────────────────────────────────────────
 const getByFacultyId = async (req, res) => {
   try {
-    const facultyId = parseInt(req.params.facultyId);
+    const resolvedFacultyId = await resolveFacultyIdMaybeUid(req.params.facultyId);
+
+    if (!resolvedFacultyId) {
+      return res.status(404).json({ success: false, message: 'Faculty not found for provided id' });
+    }
 
     const constraint = await prisma.facultyConstraint.findUnique({
-      where: { faculty_id: facultyId },
+      where: { faculty_id: resolvedFacultyId },
     });
 
     if (!constraint) {
@@ -15,7 +37,7 @@ const getByFacultyId = async (req, res) => {
         success: true,
         data: {
           id: null,
-          faculty_id:              facultyId,
+          faculty_id:              resolvedFacultyId,
           max_lectures_per_day:    4,
           total_lectures_per_week: 16,
           unavailable_slots:       [],
@@ -42,13 +64,24 @@ const create = async (req, res) => {
       return res.status(400).json({ success: false, message: 'faculty_id is required' });
     }
 
-    const constraint = await prisma.facultyConstraint.create({
-      data: {
-        faculty_id:              parseInt(faculty_id),
-        max_lectures_per_day:    max_lectures_per_day    ? parseInt(max_lectures_per_day)    : 4,
-        total_lectures_per_week: total_lectures_per_week ? parseInt(total_lectures_per_week) : 16,
-        unavailable_slots:       unavailable_slots || [],
-        preferred_slots:         preferred_slots   || [],
+    const resolvedFacultyId = await resolveFacultyIdMaybeUid(faculty_id);
+    if (!resolvedFacultyId) {
+      return res.status(404).json({ success: false, message: 'Faculty not found for provided id' });
+    }
+
+    const payload = {
+      max_lectures_per_day:    max_lectures_per_day    ? parseInt(max_lectures_per_day)    : 4,
+      total_lectures_per_week: total_lectures_per_week ? parseInt(total_lectures_per_week) : 16,
+      unavailable_slots:       unavailable_slots || [],
+      preferred_slots:         preferred_slots   || [],
+    };
+
+    const constraint = await prisma.facultyConstraint.upsert({
+      where: { faculty_id: resolvedFacultyId },
+      update: payload,
+      create: {
+        faculty_id: resolvedFacultyId,
+        ...payload,
       },
     });
 

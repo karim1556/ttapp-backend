@@ -65,4 +65,10 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { login, getProfile };
+// ── POST /api/auth/logout ───────────────────────────────────────────────────
+const logout = async (_req, res) => {
+  // JWT is stateless in this implementation; client deletes the token locally.
+  return res.json({ success: true, message: 'Logged out successfully' });
+};
+
+module.exports = { login, getProfile, logout };

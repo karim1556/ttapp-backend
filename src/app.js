@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
@@ -11,10 +13,35 @@ app.set('json replacer', (key, value) =>
 );
 
 // ── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors());
+const allowedOrigins = String(process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((v) => v.trim())
+  .filter(Boolean);
+
+app.use(helmet());
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      return cb(new Error('CORS origin denied'));
+    },
+    credentials: true,
+  }),
+);
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(
+  '/api',
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_MAX || '1200', 10),
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+);
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth',          require('./routes/auth.routes'));
