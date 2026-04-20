@@ -74,6 +74,8 @@ async function setupSem4Subjects() {
   for (let i = 0; i < SEM4_SUBJECTS.length; i++) {
     const subject = SEM4_SUBJECTS[i];
     const facultyMember = faculty[i % faculty.length];
+    const weeklyHours = subject.isLab ? 2 : subject.credits;
+    const semesterHours = weeklyHours * 16;
 
     await prisma.subject.create({
       data: {
@@ -82,8 +84,10 @@ async function setupSem4Subjects() {
         semester: SEMESTER,
         branch_id: BRANCH_ID,
         acad_year: ACADEMIC_YEAR,
+        weekly_hours: weeklyHours,
+        semester_hours: semesterHours,
         professor_assign: String(facultyMember.faculty_id),
-        totalcredits: subject.credits,
+        totalcredits: weeklyHours,
         ispractical: subject.isLab ? 'Yes' : 'No',
         isoral: 'No',
         max_marks: 100,
@@ -152,7 +156,7 @@ async function verifyTimetable() {
 
   const classDays = new Map();
   const classLectureCounts = new Map();
-  const classDayLabSlotCounts = new Map();
+  const classDayLabSlotSets = new Map();
   const facultySlots = new Map();
   const roomSlots = new Map();
   const gapsByClassDay = new Map();
@@ -179,16 +183,38 @@ async function verifyTimetable() {
 
     // Conflict and lecture accounting
     for (const slot of ttDay.time_details) {
-      for (const lecture of slot.batch_subjects || []) {
-        classLectureCounts.set(classKey, (classLectureCounts.get(classKey) || 0) + 1);
+      const hasLabInSlot = (slot.batch_subjects || []).some((lecture) => lecture.typeOfLecture === 'Lab');
+      if (hasLabInSlot) {
+        const slotLabs = (slot.batch_subjects || []).filter((lecture) => lecture.typeOfLecture === 'Lab');
+        const slotBatchSet = new Set(slotLabs.map((l) => String(l.batch || '').toUpperCase()));
+        const slotSubjectSet = new Set(slotLabs.map((l) => String(l.subjectCode || '').trim()));
+        const slotRoomSet = new Set(slotLabs.map((l) => String(l.room_number || '').trim()));
 
-        if (lecture.typeOfLecture === 'Lab') {
-          const classDayKey = `${classKey}_${ttDay.dateOfWeek}`;
-          classDayLabSlotCounts.set(
-            classDayKey,
-            (classDayLabSlotCounts.get(classDayKey) || 0) + 1,
+        if (!['A', 'B', 'C'].every((b) => slotBatchSet.has(b))) {
+          throw new Error(
+            `Parallel lab batch coverage failed for division ${ttDay.division} on ${ttDay.dateOfWeek} ${slot.startTimeHr}:${slot.startTimeMinutes}`,
           );
         }
+
+        if (slotSubjectSet.size < 3) {
+          throw new Error(
+            `Parallel lab subject diversity failed for division ${ttDay.division} on ${ttDay.dateOfWeek} ${slot.startTimeHr}:${slot.startTimeMinutes}`,
+          );
+        }
+
+        if (slotRoomSet.size < 3) {
+          throw new Error(
+            `Parallel lab room diversity failed for division ${ttDay.division} on ${ttDay.dateOfWeek} ${slot.startTimeHr}:${slot.startTimeMinutes}`,
+          );
+        }
+
+        const classDayKey = `${classKey}_${ttDay.dateOfWeek}`;
+        if (!classDayLabSlotSets.has(classDayKey)) classDayLabSlotSets.set(classDayKey, new Set());
+        classDayLabSlotSets.get(classDayKey).add(`${slot.startTimeHr}_${slot.startTimeMinutes}`);
+      }
+
+      for (const lecture of slot.batch_subjects || []) {
+        classLectureCounts.set(classKey, (classLectureCounts.get(classKey) || 0) + 1);
 
         if (lecture.facultyid) {
           const fKey = `${slotKey(ttDay.dateOfWeek, slot.startTimeHr, slot.startTimeMinutes)}_${lecture.facultyid}`;
@@ -265,7 +291,7 @@ async function verifyTimetable() {
 
     for (const day of DAYS) {
       const classDayKey = `${division}_${day}`;
-      const labSlots = classDayLabSlotCounts.get(classDayKey) || 0;
+      const labSlots = (classDayLabSlotSets.get(classDayKey) || new Set()).size;
 
       if (labSlots > 2) {
         throw new Error(
@@ -282,12 +308,14 @@ async function verifyTimetable() {
   }
 
   const worstGap = Math.max(...[...gapsByClassDay.values(), 0]);
-  const maxLabSlotsInDay = Math.max(...[...classDayLabSlotCounts.values(), 0]);
+  const maxLabSlotsInDay = Math.max(...[...[...classDayLabSlotSets.values()].map((s) => s.size), 0]);
 
   return {
     rows: rows.length,
     classLectureCounts: Object.fromEntries(classLectureCounts),
-    classDayLabSlotCounts: Object.fromEntries(classDayLabSlotCounts),
+    classDayLabSlotCounts: Object.fromEntries(
+      [...classDayLabSlotSets.entries()].map(([k, v]) => [k, v.size]),
+    ),
     maxLabSlotsInDay,
     worstInternalGapSlots: worstGap,
     gapsByClassDay: Object.fromEntries(gapsByClassDay),

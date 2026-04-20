@@ -15,7 +15,9 @@
 const prisma = require('../config/prisma');
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const DEFAULT_DIVISIONS = ['A', 'B', 'C'];
+const DEFAULT_DIVISIONS = ['A', 'B'];
+const DEFAULT_SEMESTER_WEEKS = 16;
+const LAB_BATCHES = ['A', 'B', 'C'];
 
 // Fallback: 8 slots per day (skip 12:00-13:00 lunch)
 const DEFAULT_TIME_SLOTS = [
@@ -59,6 +61,40 @@ function parseJson(value) {
   } catch {
     return [];
   }
+}
+
+function parseFiniteInt(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resolveSemestersFromTermType(termType) {
+  const t = String(termType || '').trim().toLowerCase();
+  if (t === 'even') return [2, 4, 6, 8];
+  if (t === 'odd') return [1, 3, 5, 7];
+  return null;
+}
+
+function resolveSubjectWeeklyHours(subject) {
+  const directWeekly = parseFiniteInt(subject?.weekly_hours);
+  if (directWeekly && directWeekly > 0) return directWeekly;
+
+  const semesterHours = parseFiniteInt(subject?.semester_hours);
+  if (semesterHours && semesterHours > 0) {
+    return Math.max(1, Math.ceil(semesterHours / DEFAULT_SEMESTER_WEEKS));
+  }
+
+  const credits = parseFiniteNumber(subject?.totalcredits);
+  if (credits && credits > 0) return Math.ceil(credits);
+
+  return 1;
 }
 
 function shuffleArray(input) {
@@ -219,6 +255,16 @@ function makeEmptyGrid(classKeys, slotCount) {
   return grid;
 }
 
+function expandBatchAssignments(assignment) {
+  if (!assignment) return [];
+
+  if (Array.isArray(assignment.labBatchAssignments) && assignment.labBatchAssignments.length) {
+    return assignment.labBatchAssignments;
+  }
+
+  return [assignment];
+}
+
 function buildUsageMaps({ grid, classKeys, timeSlots }) {
   const facultyUsage = {};
   const roomUsage = {};
@@ -234,12 +280,15 @@ function buildUsageMaps({ grid, classKeys, timeSlots }) {
         const assignment = dayGrid[si];
         if (!assignment) continue;
 
-        if (assignment.facultyId) {
-          facultyUsage[`${assignment.facultyId}_${day}_${si}`] = cKey;
-        }
+        const unitAssignments = expandBatchAssignments(assignment);
+        for (const unit of unitAssignments) {
+          if (unit.facultyId) {
+            facultyUsage[`${unit.facultyId}_${day}_${si}`] = cKey;
+          }
 
-        if (assignment.roomId) {
-          roomUsage[`${assignment.roomId}_${day}_${si}`] = cKey;
+          if (unit.roomId) {
+            roomUsage[`${unit.roomId}_${day}_${si}`] = cKey;
+          }
         }
       }
     }
@@ -255,24 +304,30 @@ function compactScheduleGrid({ grid, classKeys, timeSlots }) {
   const clearUsage = (assignment, day, slotIdx) => {
     if (!assignment) return;
 
-    if (assignment.facultyId) {
-      delete facultyUsage[`${assignment.facultyId}_${day}_${slotIdx}`];
-    }
+    const unitAssignments = expandBatchAssignments(assignment);
+    for (const unit of unitAssignments) {
+      if (unit.facultyId) {
+        delete facultyUsage[`${unit.facultyId}_${day}_${slotIdx}`];
+      }
 
-    if (assignment.roomId) {
-      delete roomUsage[`${assignment.roomId}_${day}_${slotIdx}`];
+      if (unit.roomId) {
+        delete roomUsage[`${unit.roomId}_${day}_${slotIdx}`];
+      }
     }
   };
 
   const setUsage = (assignment, cKey, day, slotIdx) => {
     if (!assignment) return;
 
-    if (assignment.facultyId) {
-      facultyUsage[`${assignment.facultyId}_${day}_${slotIdx}`] = cKey;
-    }
+    const unitAssignments = expandBatchAssignments(assignment);
+    for (const unit of unitAssignments) {
+      if (unit.facultyId) {
+        facultyUsage[`${unit.facultyId}_${day}_${slotIdx}`] = cKey;
+      }
 
-    if (assignment.roomId) {
-      roomUsage[`${assignment.roomId}_${day}_${slotIdx}`] = cKey;
+      if (unit.roomId) {
+        roomUsage[`${unit.roomId}_${day}_${slotIdx}`] = cKey;
+      }
     }
   };
 
@@ -283,14 +338,17 @@ function compactScheduleGrid({ grid, classKeys, timeSlots }) {
     if (slotDef?.is_break) return false;
     if (dayGrid[slotIdx] !== null) return false;
 
-    if (assignment.facultyId) {
-      const key = `${assignment.facultyId}_${day}_${slotIdx}`;
-      if (facultyUsage[key] && facultyUsage[key] !== cKey) return false;
-    }
+    const unitAssignments = expandBatchAssignments(assignment);
+    for (const unit of unitAssignments) {
+      if (unit.facultyId) {
+        const key = `${unit.facultyId}_${day}_${slotIdx}`;
+        if (facultyUsage[key] && facultyUsage[key] !== cKey) return false;
+      }
 
-    if (assignment.roomId) {
-      const key = `${assignment.roomId}_${day}_${slotIdx}`;
-      if (roomUsage[key] && roomUsage[key] !== cKey) return false;
+      if (unit.roomId) {
+        const key = `${unit.roomId}_${day}_${slotIdx}`;
+        if (roomUsage[key] && roomUsage[key] !== cKey) return false;
+      }
     }
 
     return true;
@@ -374,6 +432,7 @@ function canPlaceLecture({
   timeSlots,
   classDayGrid,
   constraintMap,
+  facultyMap,
   facultySlotUsage,
   facultyDayCount,
   facultyWeekCount,
@@ -392,7 +451,8 @@ function canPlaceLecture({
   const weekUsed = facultyWeekCount[req.facultyId] ?? 0;
 
   const maxPerDay = constraint?.max_lectures_per_day ?? 4;
-  const maxPerWeek = constraint?.total_lectures_per_week ?? 18;
+  const facultyWeekHours = parseFiniteInt(facultyMap?.[req.facultyId]?.weekly_work_hours);
+  const maxPerWeek = facultyWeekHours ?? constraint?.total_lectures_per_week ?? 18;
 
   if (dayUsed >= maxPerDay) return false;
   if (weekUsed >= maxPerWeek) return false;
@@ -482,6 +542,7 @@ function buildCandidateSchedule({
   classKeys,
   timeSlots,
   constraintMap,
+  facultyMap,
   roomPoolByClass,
   attemptIndex,
 }) {
@@ -492,17 +553,8 @@ function buildCandidateSchedule({
     lecturesAssigned: 0,
   }));
 
-  const ordered = reqs
-    .map((req) => ({
-      req,
-      hardness:
-        (req.isPractical ? 1000 : 0) +
-        req.lecturesNeeded * 100 +
-        Math.random() * 25 +
-        attemptIndex * 0.1,
-    }))
-    .sort((a, b) => b.hardness - a.hardness)
-    .map((x) => x.req);
+  const practicalReqs = reqs.filter((r) => r.isPractical);
+  const theoryReqs = reqs.filter((r) => !r.isPractical);
 
   const facultySlotUsage = {};
   const facultyDayCount = {};
@@ -512,7 +564,204 @@ function buildCandidateSchedule({
   const classDayLabBlocks = {};
   let preferredMatches = 0;
 
-  for (const req of ordered) {
+  const practicalByClass = {};
+  for (const req of practicalReqs) {
+    if (!practicalByClass[req.classKey]) practicalByClass[req.classKey] = [];
+    practicalByClass[req.classKey].push(req);
+  }
+
+  const pickParallelLabSet = (classPracticalReqs) => {
+    const candidates = classPracticalReqs
+      .filter((r) => r.lecturesAssigned < r.lecturesNeeded)
+      .sort((a, b) => (b.lecturesNeeded - b.lecturesAssigned) - (a.lecturesNeeded - a.lecturesAssigned));
+
+    if (!candidates.length) return null;
+
+    const selected = [];
+    const usedFaculty = new Set();
+    const usedSubject = new Set();
+
+    for (const candidate of shuffleArray(candidates)) {
+      if (selected.length >= LAB_BATCHES.length) break;
+      if (usedFaculty.has(candidate.facultyId)) continue;
+      if (usedSubject.has(candidate.subject.subject_code)) continue;
+
+      selected.push(candidate);
+      usedFaculty.add(candidate.facultyId);
+      usedSubject.add(candidate.subject.subject_code);
+    }
+
+    return selected.length === LAB_BATCHES.length ? selected : null;
+  };
+
+  const findParallelLabPlacement = (bundleReqs) => {
+    let best = null;
+    const classReq = bundleReqs[0];
+    const dayOrder = attemptIndex % 2 === 0 ? DAYS : shuffleArray(DAYS);
+
+    for (const day of dayOrder) {
+      const classDayGrid = grid[classReq.classKey][day];
+      const classDayLabKey = `${classReq.classKey}_${day}`;
+      if ((classDayLabBlocks[classDayLabKey] ?? 0) >= 1) continue;
+
+      const slotOrder = attemptIndex % 3 === 0
+        ? Array.from({ length: timeSlots.length }, (_, i) => i)
+        : shuffleArray(Array.from({ length: timeSlots.length }, (_, i) => i));
+
+      for (const slotIdx of slotOrder) {
+        if (slotIdx + 1 >= timeSlots.length) continue;
+        if (classDayGrid[slotIdx] !== null || classDayGrid[slotIdx + 1] !== null) continue;
+
+        const slot = timeSlots[slotIdx];
+        const nextSlot = timeSlots[slotIdx + 1];
+        if (slot?.is_break || nextSlot?.is_break) continue;
+
+        const localRoomUsage = { ...roomSlotUsage };
+        const selectedUnits = [];
+        let valid = true;
+        let score = 0;
+
+        for (const req of bundleReqs) {
+          const constraint = constraintMap[req.facultyId];
+          const dayKey = `${req.facultyId}_${day}`;
+          const dayUsed = facultyDayCount[dayKey] ?? 0;
+          const weekUsed = facultyWeekCount[req.facultyId] ?? 0;
+
+          const maxPerDay = constraint?.max_lectures_per_day ?? 4;
+          const facultyWeekHours = parseFiniteInt(facultyMap?.[req.facultyId]?.weekly_work_hours);
+          const maxPerWeek = facultyWeekHours ?? constraint?.total_lectures_per_week ?? 18;
+
+          if (dayUsed >= maxPerDay || weekUsed >= maxPerWeek) {
+            valid = false;
+            break;
+          }
+
+          if (isUnavailable(constraint, day, slot.startTimeHr) || isUnavailable(constraint, day, nextSlot.startTimeHr)) {
+            valid = false;
+            break;
+          }
+
+          const facKey = `${req.facultyId}_${day}_${slotIdx}`;
+          const nextFacKey = `${req.facultyId}_${day}_${slotIdx + 1}`;
+          if (facultySlotUsage[facKey] || facultySlotUsage[nextFacKey]) {
+            valid = false;
+            break;
+          }
+
+          const room = findAvailableRoomForPlacement({
+            req,
+            day,
+            slotIdx,
+            timeSlots,
+            roomPoolByClass,
+            roomSlotUsage: localRoomUsage,
+          });
+
+          if (!room) {
+            valid = false;
+            break;
+          }
+
+          selectedUnits.push({ req, room });
+          localRoomUsage[`${day}_${slotIdx}_${room.id}`] = true;
+          localRoomUsage[`${day}_${slotIdx + 1}_${room.id}`] = true;
+
+          if (isPreferredSlot(constraint, day, slot.startTimeHr)) score += 6;
+          score += 8 - (slotIdx * 0.6);
+        }
+
+        if (!valid) continue;
+
+        score += Math.random() * 1.25;
+        if (!best || score > best.score) {
+          best = { day, slotIdx, units: selectedUnits, score };
+        }
+      }
+    }
+
+    return best;
+  };
+
+  const classOrder = attemptIndex % 2 === 0 ? classKeys : shuffleArray(classKeys);
+  const legacyPracticalReqs = [];
+
+  for (const cKey of classOrder) {
+    const classPracticalReqs = practicalByClass[cKey] || [];
+    const uniquePracticalSubjects = new Set(classPracticalReqs.map((r) => r.subject.subject_code));
+    const uniquePracticalFaculty = new Set(classPracticalReqs.map((r) => r.facultyId));
+    const supportsParallelBatches =
+      uniquePracticalSubjects.size >= LAB_BATCHES.length
+      && uniquePracticalFaculty.size >= LAB_BATCHES.length;
+
+    if (!supportsParallelBatches) {
+      legacyPracticalReqs.push(...classPracticalReqs);
+      continue;
+    }
+
+    let safety = 200;
+
+    while (
+      classPracticalReqs.some((r) => r.lecturesAssigned < r.lecturesNeeded)
+      && safety > 0
+    ) {
+      safety -= 1;
+
+      const bundleReqs = pickParallelLabSet(classPracticalReqs);
+      if (!bundleReqs) break;
+
+      const bestBundle = findParallelLabPlacement(bundleReqs);
+      if (!bestBundle) break;
+
+      const { day, slotIdx, units } = bestBundle;
+      const classDayLabKey = `${cKey}_${day}`;
+
+      const labAssignments = units.map((u, idx) => ({
+        ...u.req,
+        batchCode: LAB_BATCHES[idx],
+        roomId: u.room.id,
+        roomNumber: u.room.room_number,
+      }));
+
+      const baseAssignment = {
+        ...labAssignments[0],
+        labBatchAssignments: labAssignments,
+      };
+
+      grid[cKey][day][slotIdx] = baseAssignment;
+      grid[cKey][day][slotIdx + 1] = {
+        ...baseAssignment,
+        _labSecond: true,
+      };
+
+      for (const assignment of labAssignments) {
+        facultySlotUsage[`${assignment.facultyId}_${day}_${slotIdx}`] = true;
+        facultySlotUsage[`${assignment.facultyId}_${day}_${slotIdx + 1}`] = true;
+
+        roomSlotUsage[`${day}_${slotIdx}_${assignment.roomId}`] = true;
+        roomSlotUsage[`${day}_${slotIdx + 1}_${assignment.roomId}`] = true;
+
+        const dayKey = `${assignment.facultyId}_${day}`;
+        facultyDayCount[dayKey] = (facultyDayCount[dayKey] ?? 0) + 1;
+        facultyWeekCount[assignment.facultyId] = (facultyWeekCount[assignment.facultyId] ?? 0) + 1;
+
+        const subjDayKey = `${assignment.classKey}_${assignment.subject.subject_code}_${day}`;
+        subjectDayCount[subjDayKey] = (subjectDayCount[subjDayKey] ?? 0) + 1;
+
+        const constraint = constraintMap[assignment.facultyId];
+        const slot = timeSlots[slotIdx];
+        if (isPreferredSlot(constraint, day, slot.startTimeHr)) {
+          preferredMatches += 1;
+        }
+      }
+
+      classDayLabBlocks[classDayLabKey] = (classDayLabBlocks[classDayLabKey] ?? 0) + 1;
+      for (const unit of units) {
+        unit.req.lecturesAssigned += 1;
+      }
+    }
+  }
+
+  const placeSingleRequirement = (req) => {
     while (req.lecturesAssigned < req.lecturesNeeded) {
       let best = null;
       const dayOrder = attemptIndex % 2 === 0 ? DAYS : shuffleArray(DAYS);
@@ -531,6 +780,7 @@ function buildCandidateSchedule({
             timeSlots,
             classDayGrid,
             constraintMap,
+            facultyMap,
             facultySlotUsage,
             facultyDayCount,
             facultyWeekCount,
@@ -539,9 +789,7 @@ function buildCandidateSchedule({
             classDayLabBlocks,
           });
 
-          if (!availableRoom) {
-            continue;
-          }
+          if (!availableRoom) continue;
 
           const score = scorePlacement({
             req,
@@ -604,6 +852,33 @@ function buildCandidateSchedule({
 
       req.lecturesAssigned += 1;
     }
+  };
+
+  const orderedLegacyPractical = legacyPracticalReqs
+    .map((req) => ({
+      req,
+      hardness: req.lecturesNeeded * 120 + Math.random() * 20 + attemptIndex * 0.1,
+    }))
+    .sort((a, b) => b.hardness - a.hardness)
+    .map((x) => x.req);
+
+  for (const req of orderedLegacyPractical) {
+    placeSingleRequirement(req);
+  }
+
+  const orderedTheory = theoryReqs
+    .map((req) => ({
+      req,
+      hardness:
+        req.lecturesNeeded * 100 +
+        Math.random() * 25 +
+        attemptIndex * 0.1,
+    }))
+    .sort((a, b) => b.hardness - a.hardness)
+    .map((x) => x.req);
+
+  for (const req of orderedTheory) {
+    placeSingleRequirement(req);
   }
 
   const requiredLectures = reqs.reduce((sum, r) => sum + r.lecturesNeeded, 0);
@@ -637,6 +912,7 @@ function optimizeSchedule({
   classKeys,
   timeSlots,
   constraintMap,
+  facultyMap,
   roomPoolByClass,
   attempts = 12,
 }) {
@@ -649,6 +925,7 @@ function optimizeSchedule({
       classKeys,
       timeSlots,
       constraintMap,
+      facultyMap,
       roomPoolByClass,
       attemptIndex: i,
     });
@@ -744,19 +1021,25 @@ async function persistSchedule({ classConfigs, grid, timeSlots, academicYear, cr
 
         const assignment = grid[cKey][day][si];
         if (assignment) {
-          await prisma.timeTableBatchSubject.create({
-            data: {
-              time_table_detailed_id: detailRow.id,
-              typeOfLecture: assignment.isPractical ? 'Lab' : 'Lecture',
-              subjectCode: assignment.subject.subject_code,
-              facultyid: assignment.facultyId ? BigInt(assignment.facultyId) : null,
-              room_number: assignment.roomNumber || null,
-              batch: config.division,
-              createdBy: createdByBig,
-            },
-          });
+          const batchAssignments = expandBatchAssignments(assignment);
 
-          slotsAssigned += 1;
+          for (const row of batchAssignments) {
+            await prisma.timeTableBatchSubject.create({
+              data: {
+                time_table_detailed_id: detailRow.id,
+                typeOfLecture: row.isPractical ? 'Lab' : 'Lecture',
+                subjectCode: row.subject.subject_code,
+                facultyid: row.facultyId ? BigInt(row.facultyId) : null,
+                room_number: row.roomNumber || null,
+                batch: row.isPractical
+                  ? (row.batchCode || row.batch || LAB_BATCHES[0])
+                  : config.division,
+                createdBy: createdByBig,
+              },
+            });
+
+            slotsAssigned += 1;
+          }
         }
       }
     }
@@ -805,10 +1088,11 @@ function buildRequirementsForClasses({ classConfigs, subjectsByPair, facultyMap,
       const isPractical = subj.ispractical === 'Yes';
       const cKey = classKey(config);
 
-      const lecturesNeededRaw = Math.ceil(subj.totalcredits ?? 3);
+      const weeklyHours = resolveSubjectWeeklyHours(subj);
+      const semesterHours = parseFiniteInt(subj.semester_hours);
       const lecturesNeeded = isPractical
-        ? Math.max(1, Math.ceil(lecturesNeededRaw / 2))
-        : Math.max(1, lecturesNeededRaw);
+        ? Math.max(1, Math.ceil(weeklyHours / 2))
+        : Math.max(1, weeklyHours);
 
       const facultyId = resolveFacultyId(subj.professor_assign, facultyMap, facultyByName);
       if (!facultyId) {
@@ -831,6 +1115,8 @@ function buildRequirementsForClasses({ classConfigs, subjectsByPair, facultyMap,
         lecturesNeeded,
         lecturesAssigned: 0,
         isPractical,
+        weeklyHours,
+        semesterHours,
       });
     }
   }
@@ -838,13 +1124,25 @@ function buildRequirementsForClasses({ classConfigs, subjectsByPair, facultyMap,
   return { requirements, skippedSubjects };
 }
 
-async function discoverClassConfigs({ branchIds, semesters, divisions }) {
+async function discoverClassConfigs({ branchIds, semesters, divisions, termType }) {
   const parsedBranchIds = Array.isArray(branchIds)
     ? branchIds.map((v) => parseInt(v, 10)).filter((v) => !Number.isNaN(v))
     : [];
-  const parsedSemesters = Array.isArray(semesters)
+  const parsedSemestersInput = Array.isArray(semesters)
     ? semesters.map((v) => parseInt(v, 10)).filter((v) => !Number.isNaN(v))
     : [];
+  const termSemesters = resolveSemestersFromTermType(termType) || [];
+
+  let parsedSemesters = parsedSemestersInput;
+  if (termSemesters.length) {
+    parsedSemesters = parsedSemestersInput.length
+      ? parsedSemestersInput.filter((s) => termSemesters.includes(s))
+      : termSemesters;
+
+    if (!parsedSemesters.length) {
+      parsedSemesters = termSemesters;
+    }
+  }
 
   const where = {};
   if (parsedBranchIds.length) where.branch_id = { in: parsedBranchIds };
@@ -955,6 +1253,7 @@ async function generateSchedulesForClasses({ classConfigs, academicYear, created
     classKeys: classesWithSubjects.map((c) => classKey(c)),
     timeSlots,
     constraintMap,
+    facultyMap,
     roomPoolByClass,
     attempts: optimizerRuns,
   });
@@ -1017,11 +1316,12 @@ async function generateSchedule({ branchId, sem, division, academicYear, created
   };
 }
 
-async function generateAllSchedules({ academicYear, createdBy, divisions, branchIds, semesters }) {
+async function generateAllSchedules({ academicYear, createdBy, divisions, branchIds, semesters, termType }) {
   const classConfigs = await discoverClassConfigs({
     branchIds,
     semesters,
     divisions,
+    termType,
   });
 
   if (!classConfigs.length) {

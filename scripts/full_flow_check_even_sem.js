@@ -3,7 +3,7 @@
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000/api';
 const BRANCH_ID = 1;
 const EVEN_SEMESTERS = [2, 4, 6, 8];
-const DIVISIONS = ['A', 'B', 'C'];
+const DIVISIONS = ['A', 'B'];
 const EXPECTED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 async function call(path, { method = 'GET', token, body } = {}) {
@@ -119,12 +119,33 @@ async function main() {
       const startMin = parseNumber(slot.startTimeMinutes);
       const slotTag = `${day}_${startHr}_${startMin}`;
 
-      for (const lecture of slot.lectures || []) {
-        lectureCountForRow += 1;
+      const slotLectures = slot.lectures || [];
+      const hasLabInSlot = slotLectures.some((lecture) => lecture.typeOfLecture === 'Lab');
+      if (hasLabInSlot) {
+        const slotLabs = slotLectures.filter((lecture) => lecture.typeOfLecture === 'Lab');
+        const batchSet = new Set(slotLabs.map((lecture) => String(lecture.batch || '').toUpperCase()));
+        const subjectSet = new Set(slotLabs.map((lecture) => String(lecture.subjectCode || '').trim()));
+        const roomSet = new Set(slotLabs.map((lecture) => String(lecture.room_number || '').trim()));
 
-        if (lecture.typeOfLecture === 'Lab') {
-          classDayLabSlotMap.set(classDayKey, (classDayLabSlotMap.get(classDayKey) || 0) + 1);
-        }
+        assert(
+          ['A', 'B', 'C'].every((batch) => batchSet.has(batch)),
+          `Parallel lab batch coverage failed for ${classKey} on ${day} ${slotTag}`,
+        );
+        assert(
+          subjectSet.size >= 3,
+          `Parallel lab subject diversity failed for ${classKey} on ${day} ${slotTag}`,
+        );
+        assert(
+          roomSet.size >= 3,
+          `Parallel lab room diversity failed for ${classKey} on ${day} ${slotTag}`,
+        );
+
+        if (!classDayLabSlotMap.has(classDayKey)) classDayLabSlotMap.set(classDayKey, new Set());
+        classDayLabSlotMap.get(classDayKey).add(slotTag);
+      }
+
+      for (const lecture of slotLectures) {
+        lectureCountForRow += 1;
 
         const facultyId = parseNumber(lecture.facultyid);
         if (facultyId) {
@@ -167,7 +188,7 @@ async function main() {
       assert(days.has(dayName), `Class ${key} missing day ${dayName}`);
 
       const classDayKey = `${key}_${dayName}`;
-      const labSlots = classDayLabSlotMap.get(classDayKey) || 0;
+      const labSlots = (classDayLabSlotMap.get(classDayKey) || new Set()).size;
       assert(labSlots <= 2, `Class ${key} has more than one lab block on ${dayName} (${labSlots} lab slots)`);
       assert(
         labSlots === 0 || labSlots === 2,

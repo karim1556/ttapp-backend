@@ -52,6 +52,7 @@ app.use('/api/holidays',      require('./routes/holiday.routes'));
 app.use('/api/constraints',   require('./routes/constraint.routes'));
 app.use('/api/admin',         require('./routes/admin.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/substitutions', require('./routes/substitution.routes'));
 app.use('/api/copo',          require('./routes/copo.routes'));
 app.use('/api/rooms',         require('./routes/room.routes'));
 app.use('/api/timeslots',     require('./routes/timeslot.routes'));

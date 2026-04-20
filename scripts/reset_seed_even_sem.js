@@ -53,7 +53,9 @@ function getSubjectTemplatesBySemester(semester) {
       { code: 'CS2-DL', name: 'Digital Logic', isLab: false },
       { code: 'CS2-OOP', name: 'Object Oriented Programming', isLab: false },
       { code: 'CS2-DM', name: 'Discrete Mathematics', isLab: false },
-      { code: 'CS2-LAB', name: 'Programming Lab II', isLab: true },
+      { code: 'CS2-LAB-DS', name: 'Data Structures Lab', isLab: true },
+      { code: 'CS2-LAB-OOP', name: 'OOP Lab', isLab: true },
+      { code: 'CS2-LAB-DL', name: 'Digital Logic Lab', isLab: true },
     ],
     4: [
       { code: 'CS4-DBMS', name: 'Database Management Systems', isLab: false },
@@ -61,7 +63,9 @@ function getSubjectTemplatesBySemester(semester) {
       { code: 'CS4-CN', name: 'Computer Networks', isLab: false },
       { code: 'CS4-ALGO', name: 'Analysis of Algorithms', isLab: false },
       { code: 'CS4-SE', name: 'Software Engineering', isLab: false },
-      { code: 'CS4-LAB', name: 'DBMS Laboratory', isLab: true },
+      { code: 'CS4-LAB-DBMS', name: 'DBMS Laboratory', isLab: true },
+      { code: 'CS4-LAB-OS', name: 'OS Laboratory', isLab: true },
+      { code: 'CS4-LAB-CN', name: 'CN Laboratory', isLab: true },
     ],
     6: [
       { code: 'CS6-CD', name: 'Compiler Design', isLab: false },
@@ -69,7 +73,9 @@ function getSubjectTemplatesBySemester(semester) {
       { code: 'CS6-WEB', name: 'Web Engineering', isLab: false },
       { code: 'CS6-AI', name: 'Artificial Intelligence', isLab: false },
       { code: 'CS6-IS', name: 'Information Security', isLab: false },
-      { code: 'CS6-LAB', name: 'Web and AI Laboratory', isLab: true },
+      { code: 'CS6-LAB-WEB', name: 'Web Engineering Laboratory', isLab: true },
+      { code: 'CS6-LAB-AI', name: 'AI Laboratory', isLab: true },
+      { code: 'CS6-LAB-DSYS', name: 'Distributed Systems Laboratory', isLab: true },
     ],
     8: [
       { code: 'CS8-CLOUD', name: 'Cloud Computing', isLab: false },
@@ -77,7 +83,9 @@ function getSubjectTemplatesBySemester(semester) {
       { code: 'CS8-IOT', name: 'Internet of Things', isLab: false },
       { code: 'CS8-ML', name: 'Machine Learning', isLab: false },
       { code: 'CS8-PM', name: 'Project Management', isLab: false },
-      { code: 'CS8-LAB', name: 'Cloud and ML Laboratory', isLab: true },
+      { code: 'CS8-LAB-CLOUD', name: 'Cloud Laboratory', isLab: true },
+      { code: 'CS8-LAB-ML', name: 'Machine Learning Laboratory', isLab: true },
+      { code: 'CS8-LAB-IOT', name: 'IOT Laboratory', isLab: true },
     ],
   };
 
@@ -206,6 +214,7 @@ async function seedSubjects(facultyRows) {
     for (const subject of templates) {
       const faculty = facultyRows[pointer % facultyRows.length];
       pointer += 1;
+      const weeklyHours = subject.isLab ? 2 : 4;
 
       await prisma.subject.create({
         data: {
@@ -214,8 +223,10 @@ async function seedSubjects(facultyRows) {
           semester: sem,
           branch_id: BRANCH_ID,
           acad_year: ACAD_YEAR,
+          weekly_hours: weeklyHours,
+          semester_hours: weeklyHours * 16,
           professor_assign: String(faculty.faculty_id),
-          totalcredits: subject.isLab ? 2 : 4,
+          totalcredits: weeklyHours,
           ispractical: subject.isLab ? 'Yes' : 'No',
           isoral: 'No',
           max_marks: 100,

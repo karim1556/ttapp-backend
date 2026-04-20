@@ -6,6 +6,8 @@ const normalize = (s) => ({
   isPractical:     s.ispractical === 'Yes' ? 1 : 0,
   isOral:          s.isoral === 'Yes' ? 1 : 0,
   totalCredits:    s.totalcredits,
+  weeklyHours:     s.weekly_hours,
+  semesterHours:   s.semester_hours,
   professorAssign: s.professor_assign,
 });
 
@@ -34,6 +36,8 @@ const create = async (req, res) => {
   try {
     const {
       subjectName, subjectCode, semester, totalCredits,
+      weeklyHours, weekly_hours,
+      semesterHours, semester_hours,
       isPractical, isOral, branchId, acadYear,
       professorAssign, professor_assign,
       maxMarks, max_marks,
@@ -46,12 +50,23 @@ const create = async (req, res) => {
       experiments, theory,
     } = req.body;
 
+    const parsedWeeklyHours = (weeklyHours ?? weekly_hours) !== undefined
+      ? parseInt(weeklyHours ?? weekly_hours, 10)
+      : null;
+    const parsedSemesterHours = (semesterHours ?? semester_hours) !== undefined
+      ? parseInt(semesterHours ?? semester_hours, 10)
+      : null;
+
     const subject = await prisma.subject.create({
       data: {
         subject_name:    subjectName,
         subject_code:    subjectCode,
         semester:        semester       ? parseInt(semester)        : null,
-        totalcredits:    totalCredits   ? parseFloat(totalCredits)  : null,
+        totalcredits:    totalCredits
+          ? parseFloat(totalCredits)
+          : (parsedWeeklyHours !== null ? parseFloat(parsedWeeklyHours) : null),
+        weekly_hours:    parsedWeeklyHours,
+        semester_hours:  parsedSemesterHours,
         ispractical:     (isPractical  === 1 || isPractical  === '1'  || isPractical  === true) ? 'Yes' : 'No',
         isoral:          (isOral       === 1 || isOral       === '1'  || isOral       === true) ? 'Yes' : 'No',
         branch_id:       branchId      ? parseInt(branchId)        : null,
@@ -81,6 +96,8 @@ const update = async (req, res) => {
     const id = parseInt(req.params.id);
     const {
       subjectName, subjectCode, semester, totalCredits,
+      weeklyHours, weekly_hours,
+      semesterHours, semester_hours,
       isPractical, isOral, branchId, acadYear,
       professorAssign, professor_assign,
       maxMarks, max_marks,
@@ -98,6 +115,20 @@ const update = async (req, res) => {
     if (subjectCode  !== undefined) data.subject_code = subjectCode;
     if (semester     !== undefined) data.semester     = parseInt(semester);
     if (totalCredits !== undefined) data.totalcredits = parseFloat(totalCredits);
+
+    const wHours = weeklyHours ?? weekly_hours;
+    if (wHours !== undefined) {
+      data.weekly_hours = wHours === null || wHours === '' ? null : parseInt(wHours, 10);
+      if (totalCredits === undefined && data.weekly_hours !== null) {
+        data.totalcredits = parseFloat(data.weekly_hours);
+      }
+    }
+
+    const sHours = semesterHours ?? semester_hours;
+    if (sHours !== undefined) {
+      data.semester_hours = sHours === null || sHours === '' ? null : parseInt(sHours, 10);
+    }
+
     if (isPractical  !== undefined) data.ispractical  = (isPractical === 1 || isPractical === '1' || isPractical === true) ? 'Yes' : 'No';
     if (isOral       !== undefined) data.isoral       = (isOral      === 1 || isOral      === '1' || isOral      === true) ? 'Yes' : 'No';
     if (branchId     !== undefined) data.branch_id    = parseInt(branchId);

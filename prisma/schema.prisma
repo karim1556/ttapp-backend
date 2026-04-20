@@ -43,6 +43,7 @@ model Faculty {
   cv                 String?            @db.Text
   email              String?            @db.VarChar(255)
   branch_id          Int?
+  weekly_work_hours  Int?               @default(18)
   status             Int?               @default(1) @db.TinyInt
   constraints        FacultyConstraint?
 
@@ -56,6 +57,8 @@ model Subject {
   semester         Int?
   branch_id        Int?
   acad_year        String? @db.VarChar(100)
+  weekly_hours     Int?
+  semester_hours   Int?
   experiments      String? @db.Text
   num_experiments  Int?
   num_assignments  Int?
@@ -180,6 +183,38 @@ model FcmToken {
   updated_at DateTime @updatedAt
 
   @@map("fcm_tokens")
+}
+
+model SubstitutionRecord {
+  id                      BigInt   @id @default(autoincrement())
+  lecture_id              BigInt
+  slot_id                 BigInt
+  date                    DateTime @db.Date
+  day_name                String?  @db.VarChar(20)
+  original_faculty_id     Int?
+  original_faculty_name   String?  @db.VarChar(255)
+  substitute_faculty_id   Int
+  substitute_faculty_name String?  @db.VarChar(255)
+  subject_code            String?  @db.VarChar(100)
+  subject_name            String?  @db.VarChar(255)
+  room_number             String?  @db.VarChar(20)
+  batch                   String?  @db.VarChar(10)
+  lecture_type            String?  @db.VarChar(50)
+  status                  String   @default("pending") @db.VarChar(30)
+  reason                  String?  @db.VarChar(1000)
+  approved_by             Int?
+  approved_at             DateTime?
+  temporary_only          Int      @default(1) @db.TinyInt
+  created_by              Int?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  @@index([date], map: "idx_substitutions_date")
+  @@index([status], map: "idx_substitutions_status")
+  @@index([original_faculty_id], map: "idx_substitutions_original_faculty")
+  @@index([substitute_faculty_id], map: "idx_substitutions_substitute_faculty")
+  @@unique([lecture_id, date], map: "uq_substitutions_lecture_date")
+  @@map("substitutions")
 }
 
 model Room {

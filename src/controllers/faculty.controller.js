@@ -31,6 +31,8 @@ const create = async (req, res) => {
       dob, pan_no, aadhar_card, blood_group,
       permanent_address, current_address, alternate_mobile,
       experience_details,
+      weeklyWorkHours,
+      weekly_work_hours,
     } = req.body;
 
     if (!email) {
@@ -65,6 +67,11 @@ const create = async (req, res) => {
         role:               role || null,
         qualification:      qualification || null,
         branch_id:          branch_id ? parseInt(branch_id) : null,
+        weekly_work_hours:  (weeklyWorkHours ?? weekly_work_hours) !== undefined
+          && (weeklyWorkHours ?? weekly_work_hours) !== null
+          && (weeklyWorkHours ?? weekly_work_hours) !== ''
+          ? parseInt(weeklyWorkHours ?? weekly_work_hours, 10)
+          : 18,
         depart_id:          depart_id ? parseInt(depart_id) : null,
         gender:             gender || null,
         status:             status !== undefined ? parseInt(status) : 1,
@@ -123,6 +130,12 @@ const update = async (req, res) => {
     if (raw.shift_id   !== undefined) data.shift_id   = raw.shift_id   ? parseInt(raw.shift_id)   : null;
     if (raw.previlage  !== undefined) data.previlage  = raw.previlage  ? parseInt(raw.previlage)  : null;
     if (raw.status     !== undefined) data.status     = raw.status     !== null ? parseInt(raw.status) : 1;
+    const weeklyHoursRaw = raw.weeklyWorkHours ?? raw.weekly_work_hours;
+    if (weeklyHoursRaw !== undefined) {
+      data.weekly_work_hours = weeklyHoursRaw === null || weeklyHoursRaw === ''
+        ? null
+        : parseInt(weeklyHoursRaw, 10);
+    }
     if (raw.joining_date !== undefined) data.joining_date = raw.joining_date ? new Date(raw.joining_date) : null;
     if (raw.dob          !== undefined) data.dob          = raw.dob          ? new Date(raw.dob)          : null;
 
@@ -161,4 +174,86 @@ const remove = async (req, res) => {
   }
 };
 
-module.exports = { getAll, create, update, remove };
+// ── GET /api/faculty/me ─────────────────────────────────────────────────────
+const getMe = async (req, res) => {
+  try {
+    if (!req.user?.uid) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const faculty = await prisma.faculty.findFirst({
+      where: { uid: req.user.uid },
+    });
+
+    if (!faculty) {
+      return res.status(404).json({ success: false, message: 'Faculty profile not found' });
+    }
+
+    return res.json({ success: true, data: faculty });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── PUT /api/faculty/me/work-hours ──────────────────────────────────────────
+const updateMyWeeklyWorkHours = async (req, res) => {
+  try {
+    if (!req.user?.uid) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const weeklyHoursRaw = req.body.weeklyWorkHours ?? req.body.weekly_work_hours;
+    const weeklyHours = parseInt(weeklyHoursRaw, 10);
+
+    if (!Number.isFinite(weeklyHours) || weeklyHours < 1 || weeklyHours > 60) {
+      return res.status(400).json({
+        success: false,
+        message: 'weeklyWorkHours must be a number between 1 and 60',
+      });
+    }
+
+    const faculty = await prisma.faculty.findFirst({
+      where: { uid: req.user.uid },
+      select: { faculty_id: true },
+    });
+
+    if (!faculty) {
+      return res.status(404).json({ success: false, message: 'Faculty profile not found' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const facultyRow = await tx.faculty.update({
+        where: { faculty_id: faculty.faculty_id },
+        data: { weekly_work_hours: weeklyHours },
+      });
+
+      // Keep scheduler weekly limit aligned with teacher-entered weekly workload.
+      await tx.facultyConstraint.upsert({
+        where: { faculty_id: faculty.faculty_id },
+        update: { total_lectures_per_week: weeklyHours },
+        create: {
+          faculty_id: faculty.faculty_id,
+          total_lectures_per_week: weeklyHours,
+          max_lectures_per_day: 4,
+          unavailable_slots: [],
+          preferred_slots: [],
+        },
+      });
+
+      return facultyRow;
+    });
+
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = {
+  getAll,
+  create,
+  update,
+  remove,
+  getMe,
+  updateMyWeeklyWorkHours,
+};

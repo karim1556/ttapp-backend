@@ -36,6 +36,37 @@ CREATE TABLE IF NOT EXISTS `fcm_tokens` (
   UNIQUE KEY `uq_fcm_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `substitutions` (
+  `id`                      BIGINT NOT NULL AUTO_INCREMENT,
+  `lecture_id`              BIGINT NOT NULL,
+  `slot_id`                 BIGINT NOT NULL,
+  `date`                    DATE NOT NULL,
+  `day_name`                VARCHAR(20) DEFAULT NULL,
+  `original_faculty_id`     INT DEFAULT NULL,
+  `original_faculty_name`   VARCHAR(255) DEFAULT NULL,
+  `substitute_faculty_id`   INT NOT NULL,
+  `substitute_faculty_name` VARCHAR(255) DEFAULT NULL,
+  `subject_code`            VARCHAR(100) DEFAULT NULL,
+  `subject_name`            VARCHAR(255) DEFAULT NULL,
+  `room_number`             VARCHAR(20) DEFAULT NULL,
+  `batch`                   VARCHAR(10) DEFAULT NULL,
+  `lecture_type`            VARCHAR(50) DEFAULT NULL,
+  `status`                  VARCHAR(30) NOT NULL DEFAULT 'pending',
+  `reason`                  VARCHAR(1000) DEFAULT NULL,
+  `approved_by`             INT DEFAULT NULL,
+  `approved_at`             DATETIME DEFAULT NULL,
+  `temporary_only`          TINYINT NOT NULL DEFAULT 1,
+  `created_by`              INT DEFAULT NULL,
+  `created_at`              DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`              DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_substitutions_lecture_date` (`lecture_id`, `date`),
+  KEY `idx_substitutions_date` (`date`),
+  KEY `idx_substitutions_status` (`status`),
+  KEY `idx_substitutions_original_faculty` (`original_faculty_id`),
+  KEY `idx_substitutions_substitute_faculty` (`substitute_faculty_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ============================================================
 -- SEED: default admin user  (password: admin123)
 -- bcrypt hash of "admin123" with 10 rounds

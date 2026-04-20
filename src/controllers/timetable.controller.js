@@ -448,10 +448,15 @@ const generate = async (req, res) => {
       return res.status(400).json({ success: false, message: 'branchId, sem, and division are required' });
     }
 
+    const normalizedDivision = String(division).trim().toUpperCase();
+    if (!['A', 'B'].includes(normalizedDivision)) {
+      return res.status(400).json({ success: false, message: 'Only division A or B is supported' });
+    }
+
     const result = await generateSchedule({
       branchId,
       sem,
-      division,
+      division: normalizedDivision,
       academicYear,
       createdBy: req.user.uid,
     });
@@ -470,7 +475,30 @@ const generate = async (req, res) => {
 const generateAll = async (req, res) => {
   try {
     const academicYear = req.body.academicYear || req.body.academic_year;
-    const divisions = Array.isArray(req.body.divisions) ? req.body.divisions : undefined;
+    const requestedDivisions = Array.isArray(req.body.divisions) ? req.body.divisions : undefined;
+    const termTypeRaw = req.body.termType ?? req.body.term_type;
+    const termType = termTypeRaw ? String(termTypeRaw).trim().toLowerCase() : undefined;
+
+    if (termType && !['even', 'odd'].includes(termType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'termType must be either "even" or "odd"',
+      });
+    }
+
+    const divisions = requestedDivisions
+      ? requestedDivisions
+        .map((d) => String(d).trim().toUpperCase())
+        .filter((d) => ['A', 'B'].includes(d))
+      : ['A', 'B'];
+
+    if (!divisions.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one valid division (A/B) is required',
+      });
+    }
+
     const branchIds = Array.isArray(req.body.branchIds || req.body.branch_ids)
       ? (req.body.branchIds || req.body.branch_ids)
       : undefined;
@@ -482,6 +510,7 @@ const generateAll = async (req, res) => {
       divisions,
       branchIds,
       semesters,
+      termType,
     });
 
     return res.json({
