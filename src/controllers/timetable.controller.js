@@ -86,6 +86,287 @@ function normalizeRoomNumber(value) {
   return normalized.length ? normalized : null;
 }
 
+function parseBoolean(value) {
+  if (value === true || value === false) return value;
+  if (value === 1 || value === '1') return true;
+  if (value === 0 || value === '0') return false;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === 'yes') return true;
+    if (normalized === 'false' || normalized === 'no') return false;
+  }
+  return false;
+}
+
+function parseIntSafe(value) {
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function normalizeDivision(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function resolveSemestersFromTermType(termType) {
+  const t = String(termType || '').trim().toLowerCase();
+  if (t === 'even') return [2, 4, 6, 8];
+  if (t === 'odd') return [1, 3, 5, 7];
+  return null;
+}
+
+function branchLabel(branchId) {
+  switch (branchId) {
+    case 1:
+      return 'CS';
+    case 2:
+      return 'IT';
+    case 3:
+      return 'EXTC';
+    case 4:
+      return 'Mech';
+    default:
+      return `Branch ${branchId}`;
+  }
+}
+
+function resolveFacultyId(professorAssign, facultyMap, facultyByName) {
+  if (!professorAssign) return null;
+  const asInt = parseInt(professorAssign, 10);
+  if (!Number.isNaN(asInt) && facultyMap.has(asInt)) return asInt;
+  const nameKey = String(professorAssign).toLowerCase().trim();
+  return facultyByName.get(nameKey) ?? null;
+}
+
+function formatListPreview(items, limit = 5) {
+  if (!items.length) return '';
+  const preview = items.slice(0, limit).join(', ');
+  const suffix = items.length > limit ? ` and ${items.length - limit} more` : '';
+  return `${preview}${suffix}`;
+}
+
+async function buildClassConfigsForGenerateAll({ branchIds, semesters, divisions, termType }) {
+  const parsedBranchIds = Array.isArray(branchIds)
+    ? branchIds.map((v) => parseIntSafe(v)).filter((v) => v !== null)
+    : [];
+  const parsedSemestersInput = Array.isArray(semesters)
+    ? semesters.map((v) => parseIntSafe(v)).filter((v) => v !== null)
+    : [];
+
+  const termSemesters = resolveSemestersFromTermType(termType) || [];
+  let parsedSemesters = parsedSemestersInput;
+
+  if (termSemesters.length) {
+    parsedSemesters = parsedSemestersInput.length
+      ? parsedSemestersInput.filter((s) => termSemesters.includes(s))
+      : termSemesters;
+
+    if (!parsedSemesters.length) {
+      parsedSemesters = termSemesters;
+    }
+  }
+
+  const effectiveDivisions = (Array.isArray(divisions) && divisions.length
+    ? divisions
+    : ['A', 'B'])
+    .map((d) => normalizeDivision(d))
+    .filter((d) => ['A', 'B'].includes(d));
+
+  const where = {};
+  if (parsedBranchIds.length) where.branch_id = { in: parsedBranchIds };
+  if (parsedSemesters.length) where.semester = { in: parsedSemesters };
+
+  const subjectPairs = await prisma.subject.findMany({
+    where,
+    select: { branch_id: true, semester: true },
+    distinct: ['branch_id', 'semester'],
+  });
+
+  const configs = [];
+  for (const pair of subjectPairs) {
+    if (pair.branch_id === null || pair.semester === null) continue;
+    for (const division of effectiveDivisions) {
+      configs.push({
+        branchId: pair.branch_id,
+        sem: pair.semester,
+        semStr: String(pair.semester),
+        division,
+      });
+    }
+  }
+
+  const deduped = new Map();
+  for (const config of configs) {
+    const key = `${config.branchId}_${config.semStr}_${config.division}`;
+    deduped.set(key, config);
+  }
+
+  return [...deduped.values()];
+}
+
+async function collectGenerationPreflightIssues({ classConfigs }) {
+  const issues = [];
+
+  if (!classConfigs.length) {
+    issues.push('No class configurations found from subjects. Add subjects before generating.');
+    return issues;
+  }
+
+  const [timeSlots, rooms, faculty] = await Promise.all([
+    prisma.timeSlotTemplate.findMany({
+      where: { is_active: 1 },
+      orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+    }),
+    prisma.room.findMany({ where: { is_active: 1 } }),
+    prisma.faculty.findMany({ include: { constraints: true } }),
+  ]);
+
+  const nonBreakSlots = timeSlots.filter((s) => !s.is_break);
+  if (!nonBreakSlots.length) {
+    issues.push('No active teaching time slots found. Configure periods in Time Slots.');
+  }
+
+  if (!rooms.length) {
+    issues.push('No active rooms found. Add rooms before generation.');
+  }
+
+  const activeFaculty = faculty.filter((f) => f.status === null || f.status === 1);
+  if (!activeFaculty.length) {
+    issues.push('No active teachers found. Add teachers before generation.');
+  }
+
+  const facultyMap = new Map();
+  const facultyByName = new Map();
+  for (const f of activeFaculty) {
+    facultyMap.set(f.faculty_id, f);
+    if (f.name) facultyByName.set(String(f.name).toLowerCase().trim(), f.faculty_id);
+  }
+
+  const uniquePairs = new Map();
+  for (const config of classConfigs) {
+    uniquePairs.set(`${config.branchId}_${config.semStr}`, {
+      branchId: config.branchId,
+      sem: config.sem,
+      semStr: config.semStr,
+    });
+  }
+
+  const subjectsByPair = {};
+  await Promise.all(
+    [...uniquePairs.values()].map(async (pair) => {
+      const rows = await prisma.subject.findMany({
+        where: { branch_id: pair.branchId, semester: pair.sem },
+      });
+      subjectsByPair[`${pair.branchId}_${pair.semStr}`] = rows;
+    }),
+  );
+
+  const missingSubjectsByPair = [];
+  const missingCredits = new Set();
+  const missingAssignments = new Set();
+  const invalidAssignments = new Set();
+  const usedFacultyIds = new Set();
+
+  for (const config of classConfigs) {
+    const subjects = subjectsByPair[`${config.branchId}_${config.semStr}`] || [];
+    if (!subjects.length) {
+      const label = `${branchLabel(config.branchId)} Sem ${config.semStr}`;
+      missingSubjectsByPair.push(label);
+      continue;
+    }
+
+    for (const subject of subjects) {
+      const hasWeekly = Number(subject.weekly_hours || 0) > 0;
+      const hasSemester = Number(subject.semester_hours || 0) > 0;
+      const hasCredits = Number(subject.totalcredits || 0) > 0;
+
+      if (!hasWeekly && !hasSemester && !hasCredits) {
+        if (subject.subject_code) missingCredits.add(subject.subject_code);
+      }
+
+      if (!subject.professor_assign || String(subject.professor_assign).trim().length === 0) {
+        if (subject.subject_code) missingAssignments.add(subject.subject_code);
+        continue;
+      }
+
+      const facultyId = resolveFacultyId(subject.professor_assign, facultyMap, facultyByName);
+      if (!facultyId) {
+        if (subject.subject_code) invalidAssignments.add(subject.subject_code);
+        continue;
+      }
+
+      usedFacultyIds.add(facultyId);
+    }
+  }
+
+  if (missingSubjectsByPair.length) {
+    const label = formatListPreview(missingSubjectsByPair, 4);
+    issues.push(`No subjects configured for: ${label}. Add subjects before generation.`);
+  }
+
+  if (missingCredits.size) {
+    issues.push(
+      `Set total credits/weekly hours for subjects: ${formatListPreview([...missingCredits])}.`,
+    );
+  }
+
+  if (missingAssignments.size) {
+    issues.push(
+      `Assign teacher mapping (Professor Assign) for subjects: ${formatListPreview([...missingAssignments])}.`,
+    );
+  }
+
+  if (invalidAssignments.size) {
+    issues.push(
+      `Invalid teacher mapping (Professor Assign) for subjects: ${formatListPreview([...invalidAssignments])}.`,
+    );
+  }
+
+  if (usedFacultyIds.size) {
+    const missingConstraints = [];
+    for (const facultyId of usedFacultyIds) {
+      const entry = facultyMap.get(facultyId);
+      const constraint = entry?.constraints;
+      if (!constraint || constraint.max_lectures_per_day <= 0 || constraint.total_lectures_per_week <= 0) {
+        if (entry?.name) missingConstraints.push(entry.name);
+      }
+    }
+
+    if (missingConstraints.length) {
+      issues.push(
+        `Faculty constraints are missing/invalid for: ${formatListPreview(missingConstraints)}. Configure constraints before generating.`,
+      );
+    }
+  }
+
+  return issues;
+}
+
+async function findExistingTimetableClasses({ classConfigs }) {
+  if (!classConfigs.length) return [];
+
+  const filters = classConfigs.map((c) => ({
+    branch_id: c.branchId,
+    sem: c.semStr,
+    division: c.division,
+  }));
+
+  const existingRows = await prisma.tblTimeTable.findMany({
+    where: { OR: filters },
+    select: { branch_id: true, sem: true, division: true },
+  });
+
+  const deduped = new Map();
+  for (const row of existingRows) {
+    const branchId = row.branch_id ?? 0;
+    const semStr = row.sem ?? '';
+    const division = normalizeDivision(row.division);
+    const key = `${branchId}_${semStr}_${division}`;
+    deduped.set(key, `${branchLabel(branchId)} Sem ${semStr} Div ${division}`);
+  }
+
+  return [...deduped.values()];
+}
+
 async function findFacultyConflict({
   excludeIds,
   facultyId,
@@ -439,18 +720,67 @@ const getSlots = async (req, res) => {
 const generate = async (req, res) => {
   try {
     // Accept both camelCase and snake_case field names from frontend
-    const branchId     = req.body.branchId     || req.body.branch_id;
-    const sem          = req.body.sem          || req.body.semester;
+    const branchIdRaw  = req.body.branchId     || req.body.branch_id;
+    const semRaw       = req.body.sem          || req.body.semester;
     const division     = req.body.division;
     const academicYear = req.body.academicYear || req.body.academic_year;
+    const force = parseBoolean(req.body.force ?? req.body.overwrite);
+    const dryRun = parseBoolean(req.body.dryRun ?? req.body.dry_run);
 
-    if (!branchId || !sem || !division) {
+    if (!branchIdRaw || !semRaw || !division) {
       return res.status(400).json({ success: false, message: 'branchId, sem, and division are required' });
+    }
+
+    const branchId = parseIntSafe(branchIdRaw);
+    const sem = parseIntSafe(semRaw);
+
+    if (!branchId || !sem) {
+      return res.status(400).json({
+        success: false,
+        message: 'branchId and sem must be valid numbers',
+      });
     }
 
     const normalizedDivision = String(division).trim().toUpperCase();
     if (!['A', 'B'].includes(normalizedDivision)) {
       return res.status(400).json({ success: false, message: 'Only division A or B is supported' });
+    }
+
+    const classConfigs = [{
+      branchId,
+      sem,
+      semStr: String(sem),
+      division: normalizedDivision,
+    }];
+
+    const issues = await collectGenerationPreflightIssues({ classConfigs });
+    const existingClasses = await findExistingTimetableClasses({ classConfigs });
+
+    if (dryRun) {
+      return res.json({
+        success: true,
+        ready: issues.length === 0,
+        issues,
+        existingClasses,
+      });
+    }
+
+    if (issues.length) {
+      return res.status(422).json({
+        success: false,
+        code: 'PRECHECK_FAILED',
+        message: 'Preflight validation failed. Resolve the issues and try again.',
+        issues,
+      });
+    }
+
+    if (existingClasses.length && !force) {
+      return res.status(409).json({
+        success: false,
+        code: 'EXISTING_TIMETABLE',
+        message: 'Timetable already exists for the selected class. Confirm overwrite to regenerate.',
+        existingClasses,
+      });
     }
 
     const result = await generateSchedule({
@@ -478,6 +808,8 @@ const generateAll = async (req, res) => {
     const requestedDivisions = Array.isArray(req.body.divisions) ? req.body.divisions : undefined;
     const termTypeRaw = req.body.termType ?? req.body.term_type;
     const termType = termTypeRaw ? String(termTypeRaw).trim().toLowerCase() : undefined;
+    const force = parseBoolean(req.body.force ?? req.body.overwrite);
+    const dryRun = parseBoolean(req.body.dryRun ?? req.body.dry_run);
 
     if (termType && !['even', 'odd'].includes(termType)) {
       return res.status(400).json({
@@ -503,6 +835,44 @@ const generateAll = async (req, res) => {
       ? (req.body.branchIds || req.body.branch_ids)
       : undefined;
     const semesters = Array.isArray(req.body.semesters) ? req.body.semesters : undefined;
+
+    const classConfigs = await buildClassConfigsForGenerateAll({
+      branchIds,
+      semesters,
+      divisions,
+      termType,
+    });
+
+    const issues = await collectGenerationPreflightIssues({ classConfigs });
+    const existingClasses = await findExistingTimetableClasses({ classConfigs });
+
+    if (dryRun) {
+      return res.json({
+        success: true,
+        ready: issues.length === 0,
+        issues,
+        existingClasses,
+        classCount: classConfigs.length,
+      });
+    }
+
+    if (issues.length) {
+      return res.status(422).json({
+        success: false,
+        code: 'PRECHECK_FAILED',
+        message: 'Preflight validation failed. Resolve the issues and try again.',
+        issues,
+      });
+    }
+
+    if (existingClasses.length && !force) {
+      return res.status(409).json({
+        success: false,
+        code: 'EXISTING_TIMETABLE',
+        message: 'Timetable already exists for the selected classes. Confirm overwrite to regenerate.',
+        existingClasses,
+      });
+    }
 
     const result = await generateAllSchedules({
       academicYear,
