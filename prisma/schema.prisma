@@ -72,6 +72,7 @@ model Subject {
   oral_marks       Int?    @default(0)
   practical_marks  Int?    @default(0)
   passing_marks    Int?
+  batch            String? @db.VarChar(10)
 
   @@map("subjects")
 }
@@ -242,6 +243,24 @@ model TimeSlotTemplate {
   is_active        Int?     @default(1) @db.TinyInt
 
   @@map("time_slot_templates")
+}
+
+model ClassLabSlot {
+  id               Int      @id @default(autoincrement())
+  branch_id        Int
+  semester         Int
+  division         String   @db.VarChar(10)
+  lab_slot_index   Int      @default(3)   // Index into TimeSlotTemplate (0-based, skip breaks)
+  batch_split_slot_index Int @default(0) // Slot index for batch-split (A/B/C doing different subjects)
+  // batch_split_enabled - 0=no batch split, uses whole-division at that slot
+  batch_split_enabled Int @default(1) @db.TinyInt
+  home_room        String?  @db.VarChar(20)
+  academic_year    String?  @db.VarChar(10)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@unique([branch_id, semester, division, academic_year])
+  @@map("class_lab_slots")
 }
 
 enum DayOfWeek {

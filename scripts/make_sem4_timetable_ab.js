@@ -293,15 +293,19 @@ async function verifyTimetable() {
       const classDayKey = `${division}_${day}`;
       const labSlots = (classDayLabSlotSets.get(classDayKey) || new Set()).size;
 
-      if (labSlots > 2) {
+      const maxLabSlotsPerDay = Math.floor(
+        slotTemplates.filter(s => !s.is_break).length / 2
+      ) * 2;
+
+      if (labSlots > maxLabSlotsPerDay) {
         throw new Error(
-          `Division ${division} has more than one lab block on ${day} (${labSlots} lab slots)`,
+          `Division ${division} has ${labSlots} lab slots on ${day}, max is ${maxLabSlotsPerDay}`,
         );
       }
 
-      if (labSlots !== 0 && labSlots !== 2) {
+      if (labSlots % 2 !== 0) {
         throw new Error(
-          `Division ${division} has invalid lab duration on ${day} (${labSlots} lab slots)`,
+          `Division ${division} has invalid lab duration on ${day} (${labSlots} lab slots, must be even)`,
         );
       }
     }

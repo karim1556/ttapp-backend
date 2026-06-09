@@ -40,6 +40,7 @@ const create = async (req, res) => {
       semesterHours, semester_hours,
       isPractical, isOral, branchId, acadYear,
       professorAssign, professor_assign,
+      batchProfessors, // { A: 'profId1', B: 'profId2', C: 'profId3' }
       maxMarks, max_marks,
       oralMarks, oral_marks,
       practicalMarks, practical_marks,
@@ -57,6 +58,52 @@ const create = async (req, res) => {
       ? parseInt(semesterHours ?? semester_hours, 10)
       : null;
 
+    const isLab = (isPractical === 1 || isPractical === '1' || isPractical === true);
+    const baseProf = professorAssign || professor_assign || null;
+
+    if (isLab) {
+      // Auto-create 3 batch variants for lab subjects
+      const batches = ['A', 'B', 'C'];
+      const created = [];
+
+      for (const batch of batches) {
+        const batchProf = batchProfessors?.[batch] || baseProf;
+        const batchCode = subjectCode + '-' + batch;
+
+        const subject = await prisma.subject.create({
+          data: {
+            subject_name:    subjectName + ' (Batch ' + batch + ')',
+            subject_code:    batchCode,
+            semester:        semester       ? parseInt(semester)        : null,
+            totalcredits:    totalCredits
+              ? parseFloat(totalCredits)
+              : (parsedWeeklyHours !== null ? parseFloat(parsedWeeklyHours) : null),
+            weekly_hours:    parsedWeeklyHours,
+            semester_hours:  parsedSemesterHours,
+            ispractical:     'Yes',
+            isoral:          (isOral       === 1 || isOral       === '1'  || isOral       === true) ? 'Yes' : 'No',
+            branch_id:       branchId      ? parseInt(branchId)        : null,
+            acad_year:       acadYear      || null,
+            professor_assign: batchProf,
+            batch:           batch,
+            max_marks:       (maxMarks ?? max_marks)             ? parseInt(maxMarks ?? max_marks) : 0,
+            oral_marks:      (oralMarks ?? oral_marks)           ? parseInt(oralMarks ?? oral_marks) : 0,
+            practical_marks: (practicalMarks ?? practical_marks)  ? parseInt(practicalMarks ?? practical_marks) : 0,
+            passing_marks:   (passingMarks ?? passing_marks)      ? parseInt(passingMarks ?? passing_marks) : null,
+            num_modules:     (numModules ?? num_modules)          ? parseInt(numModules ?? num_modules) : null,
+            num_experiments: (numExperiments ?? num_experiments)   ? parseInt(numExperiments ?? num_experiments) : null,
+            num_assignments: (numAssignments ?? num_assignments)   ? parseInt(numAssignments ?? num_assignments) : null,
+            experiments:     experiments ?? null,
+            theory:          theory       ?? null,
+          },
+        });
+        created.push(normalize(subject));
+      }
+
+      return res.status(201).json({ success: true, data: created, batchCreated: true });
+    }
+
+    // Theory subject: single record
     const subject = await prisma.subject.create({
       data: {
         subject_name:    subjectName,
@@ -67,11 +114,11 @@ const create = async (req, res) => {
           : (parsedWeeklyHours !== null ? parseFloat(parsedWeeklyHours) : null),
         weekly_hours:    parsedWeeklyHours,
         semester_hours:  parsedSemesterHours,
-        ispractical:     (isPractical  === 1 || isPractical  === '1'  || isPractical  === true) ? 'Yes' : 'No',
+        ispractical:     'No',
         isoral:          (isOral       === 1 || isOral       === '1'  || isOral       === true) ? 'Yes' : 'No',
         branch_id:       branchId      ? parseInt(branchId)        : null,
         acad_year:       acadYear      || null,
-        professor_assign: professorAssign || professor_assign || null,
+        professor_assign: baseProf,
         max_marks:       (maxMarks ?? max_marks)             ? parseInt(maxMarks ?? max_marks) : 0,
         oral_marks:      (oralMarks ?? oral_marks)           ? parseInt(oralMarks ?? oral_marks) : 0,
         practical_marks: (practicalMarks ?? practical_marks)  ? parseInt(practicalMarks ?? practical_marks) : 0,
