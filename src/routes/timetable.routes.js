@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const ctrl = require('../controllers/timetable.controller');
+const tempCtrl = require('../controllers/temporary.controller');
 const auth = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/role.middleware');
 
@@ -18,5 +19,13 @@ router.post('/generate',       requireAdmin, ctrl.generate);
 router.post('/generate-all',   requireAdmin, ctrl.generateAll);
 router.put('/slots/:id',       requireAdmin, ctrl.updateSlot);
 router.put('/slots/:id/move',  requireAdmin, ctrl.moveSlot);
+
+// Temporary Timetable / Events Routes
+router.post('/temporary',          requireAdmin, tempCtrl.create);
+router.post('/temporary/bulk',     requireAdmin, tempCtrl.createBulk);
+router.get('/temporary',           tempCtrl.list);
+router.get('/temporary/pdf',       tempCtrl.downloadPdf);
+router.delete('/temporary/:id',    requireAdmin, tempCtrl.delete);
+router.post('/temporary/generate', requireAdmin, tempCtrl.generate);
 
 module.exports = router;

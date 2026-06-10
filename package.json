@@ -23,7 +23,8 @@
     "google-auth-library": "^10.6.2",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "pdfkit": "^0.19.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4",

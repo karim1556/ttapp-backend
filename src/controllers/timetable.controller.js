@@ -637,10 +637,20 @@ const getClassroomUsageReport = async (_req, res) => {
   }
 };
 
+// Helper to check if two time ranges overlap
+function timeRangesOverlap(sh1, sm1, eh1, em1, sh2, sm2, eh2, em2) {
+  const start1 = sh1 * 60 + sm1;
+  const end1 = eh1 * 60 + em1;
+  const start2 = sh2 * 60 + sm2;
+  const end2 = eh2 * 60 + em2;
+  return start1 < end2 && start2 < end1;
+}
+
 // ── GET /api/timetable/today ─────────────────────────────────────────────────
 const getToday = async (req, res) => {
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  req.query.dateOfWeek = DAYS[new Date().getDay()];
+  const todayDate = new Date();
+  req.query.dateOfWeek = DAYS[todayDate.getDay()];
 
   try {
     const { branchId, sem, division } = req.query;
@@ -653,7 +663,9 @@ const getToday = async (req, res) => {
     const timetables = await prisma.tblTimeTable.findMany({ where, include: INCLUDE_FULL });
     const { subjectMap, facultyMap } = await enrichLectures(timetables);
 
-    return res.json({ success: true, data: serializeTimetables(timetables, subjectMap, facultyMap) });
+    const serialized = serializeTimetables(timetables, subjectMap, facultyMap);
+
+    return res.json({ success: true, data: serialized });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -662,7 +674,15 @@ const getToday = async (req, res) => {
 // ── GET /api/timetable/faculty/:facultyId ────────────────────────────────────
 const getFacultyTimetable = async (req, res) => {
   try {
-    const facultyId = BigInt(req.params.facultyId);
+    let facultyId = BigInt(req.params.facultyId);
+
+    // Resolve user uid to faculty_id if needed
+    const facultyByUid = await prisma.faculty.findFirst({
+      where: { uid: Number(facultyId) },
+    });
+    if (facultyByUid) {
+      facultyId = BigInt(facultyByUid.faculty_id);
+    }
 
     // Find all batch_subjects for this faculty, join through slots to timetable
     const lectures = await prisma.timeTableBatchSubject.findMany({
@@ -674,20 +694,100 @@ const getFacultyTimetable = async (req, res) => {
       },
     });
 
+    // Collect unique subject codes and faculty IDs to enrich names
+    const subjectCodes = new Set();
+    const facultyIds = new Set();
+    for (const lec of lectures) {
+      if (lec.subjectCode) subjectCodes.add(lec.subjectCode);
+      if (lec.facultyid) facultyIds.add(Number(lec.facultyid));
+    }
+
+    const [subjects, facultyList] = await Promise.all([
+      prisma.subject.findMany({
+        where: { subject_code: { in: [...subjectCodes] } },
+        select: { subject_code: true, subject_name: true },
+      }),
+      prisma.faculty.findMany({
+        where: { faculty_id: { in: [...facultyIds] } },
+        select: { faculty_id: true, name: true },
+      }),
+    ]);
+
+    const subjectMap = Object.fromEntries(subjects.map((s) => [s.subject_code, s.subject_name]));
+    const facultyMap = Object.fromEntries(facultyList.map((f) => [f.faculty_id, f.name]));
+
     // Build a day-grouped structure
     const dayMap = {};
     for (const lec of lectures) {
-      const tt   = lec.time_slot?.timetable;
-      const day  = tt?.dateOfWeek || 'Unknown';
-      if (!dayMap[day]) dayMap[day] = { timetable: tt, slots: {} };
-      const slotId = lec.time_table_detailed_id ? Number(lec.time_table_detailed_id) : 0;
-      if (!dayMap[day].slots[slotId]) {
-        dayMap[day].slots[slotId] = { slot: lec.time_slot, lectures: [] };
+      const slot = lec.time_slot;
+      if (!slot) continue;
+      const tt = slot.timetable;
+      if (!tt) continue;
+      const day = tt.dateOfWeek || 'Unknown';
+
+      if (!dayMap[day]) {
+        dayMap[day] = {
+          timetable: {
+            id:          Number(tt.id),
+            dateOfWeek:  tt.dateOfWeek,
+            branch_id:   tt.branch_id,
+            sem:         tt.sem,
+            division:    tt.division,
+            academic_id: tt.academic_id,
+            fromDate:    tt.fromDate,
+            toDate:      tt.toDate,
+          },
+          slotsMap: {},
+        };
       }
-      dayMap[day].slots[slotId].lectures.push(lec);
+
+      const slotId = Number(slot.id);
+      if (!dayMap[day].slotsMap[slotId]) {
+        dayMap[day].slotsMap[slotId] = {
+          id:               slotId,
+          timetable_id:     Number(slot.timetable_id),
+          startTimeHr:      slot.startTimeHr,
+          startTimeMinutes: slot.startTimeMinutes,
+          endTimeHr:        slot.endTimeHr,
+          endTimeMinutes:   slot.endTimeMinutes,
+          lectures: [],
+        };
+      }
+
+      dayMap[day].slotsMap[slotId].lectures.push({
+        id:                     Number(lec.id),
+        time_table_detailed_id: Number(lec.time_table_detailed_id),
+        typeOfLecture:          lec.typeOfLecture,
+        subjectCode:            lec.subjectCode,
+        subject_name:           lec.subjectCode ? (subjectMap[lec.subjectCode] || null) : null,
+        facultyid:              lec.facultyid ? Number(lec.facultyid) : null,
+        faculty_name:           lec.facultyid ? (facultyMap[Number(lec.facultyid)] || null) : null,
+        batch:                  lec.batch,
+        room_number:            lec.room_number,
+        is_extra:               lec.is_extra,
+        lect_on_dehalf:         lec.lect_on_dehalf ? Number(lec.lect_on_dehalf) : null,
+        reason:                 lec.reason,
+      });
     }
 
-    return res.json({ success: true, data: dayMap });
+    // Convert slotsMap to sorted slots list
+    const result = {};
+    for (const day of Object.keys(dayMap)) {
+      const dayData = dayMap[day];
+      const slotsList = Object.values(dayData.slotsMap);
+      slotsList.sort((a, b) => {
+        if (a.startTimeHr !== b.startTimeHr) {
+          return a.startTimeHr - b.startTimeHr;
+        }
+        return a.startTimeMinutes - b.startTimeMinutes;
+      });
+      result[day] = {
+        timetable: dayData.timetable,
+        slots: slotsList,
+      };
+    }
+
+    return res.json({ success: true, data: result });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

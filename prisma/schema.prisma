@@ -263,6 +263,29 @@ model ClassLabSlot {
   @@map("class_lab_slots")
 }
 
+model TemporaryTimeTable {
+  id               Int      @id @default(autoincrement())
+  branch_id        Int
+  semester         Int
+  division         String   @db.VarChar(10)
+  date             DateTime @db.Date
+  startTimeHr      Int
+  startTimeMinutes Int      @default(0)
+  endTimeHr        Int
+  endTimeMinutes   Int      @default(0)
+  subjectCode      String?  @db.VarChar(100)
+  facultyid        BigInt?
+  room_number      String?  @db.VarChar(20)
+  typeOfLecture    String?  @db.VarChar(50) @default("Lecture") // "Lecture", "Lab", or "Event"
+  eventName        String?  @db.VarChar(255) // For guest lectures/seminars/events
+  description      String?  @db.Text
+  createdBy        BigInt?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("temporary_timetable")
+}
+
 enum DayOfWeek {
   Sunday
   Monday
