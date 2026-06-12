@@ -265,7 +265,7 @@ async function generateTemporarySlot({
 
 const PDFDocument = require('pdfkit');
 
-async function generateTemporaryPdf(slots, { branchName, sem, division, dateRangeStr }) {
+async function generateTemporaryPdf(slots, { branchName, sem, division, dateRangeStr, eventName }) {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ margin: 50, size: 'A4' });
@@ -287,6 +287,9 @@ async function generateTemporaryPdf(slots, { branchName, sem, division, dateRang
       
       // Sub-header info
       doc.fillColor(textColor).fontSize(10).font('Helvetica').text(`Class: ${branchName || 'N/A'} Sem ${sem || 'N/A'} - Div ${division || 'N/A'}`, { align: 'center' });
+      if (eventName) {
+        doc.text(`Occasion / Purpose: ${eventName}`, { align: 'center' });
+      }
       doc.text(`Duration/Date: ${dateRangeStr || 'N/A'}`, { align: 'center' });
       doc.moveDown(1.5);
 
@@ -369,7 +372,7 @@ async function generateTemporaryPdf(slots, { branchName, sem, division, dateRang
         const dateStr = dateObj.toISOString().split('T')[0];
         const timeStr = `${String(slot.startTimeHr).padStart(2, '0')}:${String(slot.startTimeMinutes).padStart(2, '0')} - ${String(slot.endTimeHr).padStart(2, '0')}:${String(slot.endTimeMinutes).padStart(2, '0')}`;
         
-        const subjectName = slot.subjectCode || slot.eventName || 'N/A';
+        const subjectName = slot.subject_name || slot.subjectCode || 'N/A';
         const facultyName = slot.faculty_name || 'N/A';
         const roomNum = slot.room_number || 'N/A';
         const lectureType = slot.typeOfLecture || 'Lecture';

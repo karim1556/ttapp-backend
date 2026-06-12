@@ -223,7 +223,7 @@ const downloadPdf = async (req, res) => {
       return res.status(404).json({ success: false, message: 'No temporary timetable slots found matching the criteria' });
     }
 
-    // Enrich slots with faculty name
+    // Enrich slots with faculty name and subject name
     const facultyIds = [...new Set(slots.map(s => s.facultyid ? Number(s.facultyid) : null).filter(Boolean))];
     const facultyList = await prisma.faculty.findMany({
       where: { faculty_id: { in: facultyIds } },
@@ -231,10 +231,22 @@ const downloadPdf = async (req, res) => {
     });
     const facultyMap = Object.fromEntries(facultyList.map(f => [f.faculty_id, f.name]));
 
+    const subjectCodes = [...new Set(slots.map(s => s.subjectCode).filter(Boolean))];
+    const subjectList = await prisma.subject.findMany({
+      where: { subject_code: { in: subjectCodes } },
+      select: { subject_code: true, subject_name: true }
+    });
+    const subjectMap = Object.fromEntries(subjectList.map(s => [s.subject_code, s.subject_name]));
+
     const enrichedSlots = slots.map(s => ({
       ...s,
-      faculty_name: s.facultyid ? (facultyMap[Number(s.facultyid)] || null) : null
+      faculty_name: s.facultyid ? (facultyMap[Number(s.facultyid)] || null) : null,
+      subject_name: s.subjectCode ? (subjectMap[s.subjectCode] || s.subjectCode) : null
     }));
+
+    // Resolve eventName (purpose/occasion)
+    const firstWithEvent = slots.find(s => s.eventName);
+    const eventName = firstWithEvent ? firstWithEvent.eventName : null;
 
     // Resolve Branch name for report header
     let branchName = 'N/A';
@@ -265,7 +277,8 @@ const downloadPdf = async (req, res) => {
       branchName,
       sem,
       division,
-      dateRangeStr
+      dateRangeStr,
+      eventName
     });
 
     res.setHeader('Content-Type', 'application/pdf');

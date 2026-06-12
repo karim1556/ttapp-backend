@@ -2,11 +2,47 @@
 const prisma = require('../config/prisma');
 
 // ── GET /api/timeslots ───────────────────────────────────────────────────────
+// Returns slots matching branchId, semester, and division, falling back to broader scopes if empty
 const getAll = async (req, res) => {
   try {
-    const slots = await prisma.timeSlotTemplate.findMany({
-      orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
-    });
+    const branchId = req.query.branchId ? parseInt(req.query.branchId, 10) : null;
+    const semester = req.query.semester ? parseInt(req.query.semester, 10) : null;
+    const division = req.query.division || null;
+
+    let slots = [];
+
+    // 1. Try branch + semester + division
+    if (branchId && semester && division) {
+      slots = await prisma.timeSlotTemplate.findMany({
+        where: { branch_id: branchId, semester: semester, division: division },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
+
+    // 2. Try branch + semester
+    if (!slots.length && branchId && semester) {
+      slots = await prisma.timeSlotTemplate.findMany({
+        where: { branch_id: branchId, semester: semester, division: null },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
+
+    // 3. Try branch only
+    if (!slots.length && branchId) {
+      slots = await prisma.timeSlotTemplate.findMany({
+        where: { branch_id: branchId, semester: null, division: null },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
+
+    // 4. Fall back to global (null branch_id)
+    if (!slots.length) {
+      slots = await prisma.timeSlotTemplate.findMany({
+        where: { branch_id: null },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
+
     return res.json({ success: true, data: slots });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -16,13 +52,18 @@ const getAll = async (req, res) => {
 // ── POST /api/timeslots ──────────────────────────────────────────────────────
 const create = async (req, res) => {
   try {
-    const { label, startTimeHr, startTimeMinutes, endTimeHr, endTimeMinutes, is_break, sort_order, is_active } = req.body;
+    const { label, startTimeHr, startTimeMinutes, endTimeHr, endTimeMinutes,
+            is_break, sort_order, is_active, branch_id, semester, division } = req.body;
+
     if (startTimeHr === undefined || endTimeHr === undefined) {
       return res.status(400).json({ success: false, message: 'startTimeHr and endTimeHr are required' });
     }
 
     const slot = await prisma.timeSlotTemplate.create({
       data: {
+        branch_id:        branch_id !== undefined && branch_id !== null ? parseInt(branch_id) : null,
+        semester:         semester !== undefined && semester !== null ? parseInt(semester) : null,
+        division:         division !== undefined && division !== null ? division : null,
         label:            label            || null,
         startTimeHr:      parseInt(startTimeHr),
         startTimeMinutes: startTimeMinutes ? parseInt(startTimeMinutes) : 0,
@@ -43,9 +84,13 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { label, startTimeHr, startTimeMinutes, endTimeHr, endTimeMinutes, is_break, sort_order, is_active } = req.body;
+    const { label, startTimeHr, startTimeMinutes, endTimeHr, endTimeMinutes,
+            is_break, sort_order, is_active, branch_id, semester, division } = req.body;
 
     const data = {};
+    if (branch_id        !== undefined) data.branch_id        = branch_id === null ? null : parseInt(branch_id);
+    if (semester         !== undefined) data.semester         = semester === null ? null : parseInt(semester);
+    if (division         !== undefined) data.division         = division;
     if (label            !== undefined) data.label            = label;
     if (startTimeHr      !== undefined) data.startTimeHr      = parseInt(startTimeHr);
     if (startTimeMinutes !== undefined) data.startTimeMinutes = parseInt(startTimeMinutes);

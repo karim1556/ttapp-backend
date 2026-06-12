@@ -3,6 +3,7 @@ const prisma = require('../config/prisma');
 // Normalize ispractical/isoral to 0/1 for Flutter compat
 const normalize = (s) => ({
   ...s,
+  division:        s.division,
   isPractical:     s.ispractical === 'Yes' ? 1 : 0,
   isOral:          s.isoral === 'Yes' ? 1 : 0,
   totalCredits:    s.totalcredits,
@@ -14,11 +15,12 @@ const normalize = (s) => ({
 // ── GET /api/subjects ────────────────────────────────────────────────────────
 const getAll = async (req, res) => {
   try {
-    const { branchId, semester, acadYear } = req.query;
+    const { branchId, semester, acadYear, division } = req.query;
     const where = {};
     if (branchId)  where.branch_id = parseInt(branchId);
     if (semester)  where.semester  = parseInt(semester);
     if (acadYear)  where.acad_year = acadYear;
+    if (division)  where.division  = division;
 
     const subjects = await prisma.subject.findMany({
       where,
@@ -40,6 +42,7 @@ const create = async (req, res) => {
       semesterHours, semester_hours,
       isPractical, isOral, branchId, acadYear,
       professorAssign, professor_assign,
+      division,
       batchProfessors, // { A: 'profId1', B: 'profId2', C: 'profId3' }
       maxMarks, max_marks,
       oralMarks, oral_marks,
@@ -86,6 +89,7 @@ const create = async (req, res) => {
             acad_year:       acadYear      || null,
             professor_assign: batchProf,
             batch:           batch,
+            division:        division      || null,
             max_marks:       (maxMarks ?? max_marks)             ? parseInt(maxMarks ?? max_marks) : 0,
             oral_marks:      (oralMarks ?? oral_marks)           ? parseInt(oralMarks ?? oral_marks) : 0,
             practical_marks: (practicalMarks ?? practical_marks)  ? parseInt(practicalMarks ?? practical_marks) : 0,
@@ -119,6 +123,7 @@ const create = async (req, res) => {
         branch_id:       branchId      ? parseInt(branchId)        : null,
         acad_year:       acadYear      || null,
         professor_assign: baseProf,
+        division:        division      || null,
         max_marks:       (maxMarks ?? max_marks)             ? parseInt(maxMarks ?? max_marks) : 0,
         oral_marks:      (oralMarks ?? oral_marks)           ? parseInt(oralMarks ?? oral_marks) : 0,
         practical_marks: (practicalMarks ?? practical_marks)  ? parseInt(practicalMarks ?? practical_marks) : 0,
@@ -147,6 +152,7 @@ const update = async (req, res) => {
       semesterHours, semester_hours,
       isPractical, isOral, branchId, acadYear,
       professorAssign, professor_assign,
+      division,
       maxMarks, max_marks,
       oralMarks, oral_marks,
       practicalMarks, practical_marks,
@@ -162,6 +168,7 @@ const update = async (req, res) => {
     if (subjectCode  !== undefined) data.subject_code = subjectCode;
     if (semester     !== undefined) data.semester     = parseInt(semester);
     if (totalCredits !== undefined) data.totalcredits = parseFloat(totalCredits);
+    if (division     !== undefined) data.division     = division;
 
     const wHours = weeklyHours ?? weekly_hours;
     if (wHours !== undefined) {

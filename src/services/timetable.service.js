@@ -95,12 +95,33 @@ function resolveSemestersFromTermType(termType) {
 
 // ─── Time Slot Helpers ────────────────────────────────────────────────────────
 
-async function loadTimeSlots() {
+async function loadTimeSlots(branchId = null, semester = null, division = null) {
   try {
-    const dbSlots = await prisma.timeSlotTemplate.findMany({
-      where: { is_active: 1 },
-      orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
-    });
+    let dbSlots = [];
+    if (branchId && semester && division) {
+      dbSlots = await prisma.timeSlotTemplate.findMany({
+        where: { is_active: 1, branch_id: branchId, semester: parseInt(semester, 10), division: division },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
+    if (!dbSlots.length && branchId && semester) {
+      dbSlots = await prisma.timeSlotTemplate.findMany({
+        where: { is_active: 1, branch_id: branchId, semester: parseInt(semester, 10), division: null },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
+    if (!dbSlots.length && branchId) {
+      dbSlots = await prisma.timeSlotTemplate.findMany({
+        where: { is_active: 1, branch_id: branchId, semester: null, division: null },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
+    if (!dbSlots.length) {
+      dbSlots = await prisma.timeSlotTemplate.findMany({
+        where: { is_active: 1, branch_id: null },
+        orderBy: [{ sort_order: 'asc' }, { startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      });
+    }
     const nonBreakSlots = dbSlots.filter(s => !s.is_break);
     if (nonBreakSlots.length >= 5) return dbSlots;
   } catch (_) {}
@@ -190,7 +211,7 @@ function buildRequirementsForClasses({ classConfigs, subjectsByPair, facultyMap,
   for (const config of classConfigs) {
     const pk = pairKey(config);
     const ck = classKey(config);
-    const subjects = subjectsByPair[pk] || [];
+    const subjects = (subjectsByPair[pk] || []).filter(s => !s.division || s.division === config.division);
     const labGroups = {};
     const theoryList = [];
 
@@ -355,64 +376,57 @@ function buildCandidateSchedule({
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // PHASE 1: Rotated Standard Lab Splits (DBMS, OS, MPMC, BMD, DT, CSS, AI, MCOM, SPCC)
+  // PHASE 1: Batch-Split Lab Rotations
+  //   Supports lab_duration_slots=1 (1-hr single slot) or =2 (2-hr block)
+  //   Uses lab rooms when available, falls back to all rooms.
   // ═════════════════════════════════════════════════════════════════════════
 
-  const batchSplitPlaced = {};  // `${ck}` → count
-  const scheduledBatches = {};  // `${ck}_${baseCode}` → Set('A', 'B', 'C')
+  const batchSplitPlaced = {};   // `${ck}` → count
+  const scheduledBatches = {};   // `${ck}_${baseCode}` → Set('A','B','C')
+  const labRoomPool = roomPools.labs.length ? roomPools.labs : roomPools.all;
 
   for (const ck of classKeys) {
     batchSplitPlaced[ck] = 0;
     const config = classSlotConfig[ck] || {};
     const batchSplitEnabled = config.batch_split_enabled !== 0;
-    const batchSplitSlotIdx = config.batch_split_slot_index ?? 0;
+    const batchSplitSlotIdx = config.batch_split_slot_index ?? 3;
+    const labDuration = config.lab_duration_slots ?? 2;  // 1 = single slot, 2 = two-hour block
     const rotatedGroups = rotatedLabGroupsByClass[ck] || [];
 
     if (!batchSplitEnabled || rotatedGroups.length < 3) continue;
+    if (batchSplitSlotIdx < 0 || batchSplitSlotIdx >= timeSlots.length || timeSlots[batchSplitSlotIdx].is_break) continue;
 
-    const actualSlotIdx = batchSplitSlotIdx;
-    const nextSlotIdx = actualSlotIdx + 1;
-    if (actualSlotIdx < 0 || actualSlotIdx >= timeSlots.length || timeSlots[actualSlotIdx].is_break) continue;
-    if (nextSlotIdx >= timeSlots.length || timeSlots[nextSlotIdx].is_break) continue;
+    // For 2-hr block, ensure next slot is also non-break
+    const nextSlotIdx = batchSplitSlotIdx + 1;
+    if (labDuration === 2 && (nextSlotIdx >= timeSlots.length || timeSlots[nextSlotIdx].is_break)) continue;
 
-    // Initialize scheduled tracker for rotated groups
+    // Initialize scheduled tracker
     for (const group of rotatedGroups) {
       scheduledBatches[`${ck}_${group.baseCode}`] = new Set();
     }
 
-    // Try to schedule rotated labs over the days
-    // We want 1 parallel lab block per day
+    // Schedule across the days
     for (let di = 0; di < DAYS.length; di++) {
       const day = DAYS[di];
       const dg = grid[ck][day];
 
-      if (dg[actualSlotIdx] !== null || dg[nextSlotIdx] !== null) continue;
+      // Check the target slot is free
+      if (dg[batchSplitSlotIdx] !== null) continue;
+      if (labDuration === 2 && dg[nextSlotIdx] !== null) continue;
 
-      // Select 3 rotated groups cyclically
-      // We shuffle groups slightly based on attemptIndex for variety across attempts
+      // Pick 3 eligible groups that still have unscheduled batches
       const shuffledGroups = attemptIndex % 2 === 0 ? [...rotatedGroups] : shuffleArray([...rotatedGroups]);
-      
-      // Filter groups that still have unscheduled batches
       const eligibleGroups = shuffledGroups.filter(g => scheduledBatches[`${ck}_${g.baseCode}`].size < 3);
       if (eligibleGroups.length < 3) continue;
 
-      // Pick the first 3 eligible groups
       const g1 = eligibleGroups[0];
       const g2 = eligibleGroups[1];
       const g3 = eligibleGroups[2];
 
-      // We want to assign g1, g2, g3 to Batch A, B, C in some permutation (b1, b2, b3)
-      // such that b1 is not scheduled for g1, b2 not for g2, b3 not for g3.
       const batchPermutations = [
-        ['A', 'B', 'C'],
-        ['A', 'C', 'B'],
-        ['B', 'A', 'C'],
-        ['B', 'C', 'A'],
-        ['C', 'A', 'B'],
-        ['C', 'B', 'A'],
+        ['A','B','C'], ['A','C','B'], ['B','A','C'],
+        ['B','C','A'], ['C','A','B'], ['C','B','A'],
       ];
-
-      // Shuffle permutations for variety
       const shuffledPerms = shuffleArray(batchPermutations);
 
       let placed = false;
@@ -423,73 +437,77 @@ function buildCandidateSchedule({
 
         if (sched1.has(b1) || sched2.has(b2) || sched3.has(b3)) continue;
 
-        // Get the actual assignments
         const ba1 = g1.batchAssignments.find(ba => ba.batchCode === b1);
         const ba2 = g2.batchAssignments.find(ba => ba.batchCode === b2);
         const ba3 = g3.batchAssignments.find(ba => ba.batchCode === b3);
-
         if (!ba1 || !ba2 || !ba3) continue;
 
-        // Check faculty availability for block
-        if (!isFacultyAvailableForBlock(ba1.facultyId, day, actualSlotIdx, nextSlotIdx)) continue;
-        if (!isFacultyAvailableForBlock(ba2.facultyId, day, actualSlotIdx, nextSlotIdx)) continue;
-        if (!isFacultyAvailableForBlock(ba3.facultyId, day, actualSlotIdx, nextSlotIdx)) continue;
+        // Check faculty availability
+        if (labDuration === 2) {
+          if (!isFacultyAvailableForBlock(ba1.facultyId, day, batchSplitSlotIdx, nextSlotIdx)) continue;
+          if (!isFacultyAvailableForBlock(ba2.facultyId, day, batchSplitSlotIdx, nextSlotIdx)) continue;
+          if (!isFacultyAvailableForBlock(ba3.facultyId, day, batchSplitSlotIdx, nextSlotIdx)) continue;
+        } else {
+          if (!isFacultyAvailable(ba1.facultyId, day, batchSplitSlotIdx)) continue;
+          if (!isFacultyAvailable(ba2.facultyId, day, batchSplitSlotIdx)) continue;
+          if (!isFacultyAvailable(ba3.facultyId, day, batchSplitSlotIdx)) continue;
+        }
 
-        // Find 3 free rooms
+        // Find 3 free lab rooms
         const usedRooms = new Set();
-        const r1 = findFreeRoomForBlock(roomPools.regular, day, actualSlotIdx, nextSlotIdx, usedRooms);
+        const findRoom = (idx1, idx2) => {
+          for (const r of labRoomPool) {
+            if (usedRooms.has(r.id)) continue;
+            if (labDuration === 2) {
+              if (isRoomFree(r.id, day, idx1) && isRoomFree(r.id, day, idx2)) return r;
+            } else {
+              if (isRoomFree(r.id, day, idx1)) return r;
+            }
+          }
+          return null;
+        };
+
+        const r1 = findRoom(batchSplitSlotIdx, nextSlotIdx);
         if (!r1) continue;
         usedRooms.add(r1.id);
-
-        const r2 = findFreeRoomForBlock(roomPools.regular, day, actualSlotIdx, nextSlotIdx, usedRooms);
+        const r2 = findRoom(batchSplitSlotIdx, nextSlotIdx);
         if (!r2) continue;
         usedRooms.add(r2.id);
-
-        const r3 = findFreeRoomForBlock(roomPools.regular, day, actualSlotIdx, nextSlotIdx, usedRooms);
+        const r3 = findRoom(batchSplitSlotIdx, nextSlotIdx);
         if (!r3) continue;
 
-        // Found valid permutation and resources! Place it.
+        // Place the batch split
         const labBatchAssignments = [
           { subject: ba1.subject, facultyId: ba1.facultyId, batchCode: b1, roomId: r1.id, roomNumber: r1.room_number, isPractical: true, isBatchSplit: true },
           { subject: ba2.subject, facultyId: ba2.facultyId, batchCode: b2, roomId: r2.id, roomNumber: r2.room_number, isPractical: true, isBatchSplit: true },
           { subject: ba3.subject, facultyId: ba3.facultyId, batchCode: b3, roomId: r3.id, roomNumber: r3.room_number, isPractical: true, isBatchSplit: true },
         ];
+        const baseAssignment = { isBatchSplit: true, isPractical: true, labBatchAssignments };
 
-        const baseAssignment = {
-          isBatchSplit: true,
-          isPractical: true,
-          labBatchAssignments,
-        };
+        dg[batchSplitSlotIdx] = baseAssignment;
+        if (labDuration === 2) {
+          dg[nextSlotIdx] = { ...baseAssignment, _labSecond: true };
+        }
 
-        dg[actualSlotIdx] = baseAssignment;
-        dg[nextSlotIdx] = {
-          ...baseAssignment,
-          _labSecond: true,
-        };
-
-        // Record faculty and room usages
-        recordFacultyUsage(ba1.facultyId, day, actualSlotIdx);
-        recordFacultyUsage(ba1.facultyId, day, nextSlotIdx);
-        recordFacultyUsage(ba2.facultyId, day, actualSlotIdx);
-        recordFacultyUsage(ba2.facultyId, day, nextSlotIdx);
-        recordFacultyUsage(ba3.facultyId, day, actualSlotIdx);
-        recordFacultyUsage(ba3.facultyId, day, nextSlotIdx);
-
-        recordRoomUsage(r1.id, day, actualSlotIdx);
-        recordRoomUsage(r1.id, day, nextSlotIdx);
-        recordRoomUsage(r2.id, day, actualSlotIdx);
-        recordRoomUsage(r2.id, day, nextSlotIdx);
-        recordRoomUsage(r3.id, day, actualSlotIdx);
-        recordRoomUsage(r3.id, day, nextSlotIdx);
+        // Record usages
+        for (const [fid, r, slotIdx] of [
+          [ba1.facultyId, r1, batchSplitSlotIdx],
+          [ba2.facultyId, r2, batchSplitSlotIdx],
+          [ba3.facultyId, r3, batchSplitSlotIdx],
+        ]) {
+          recordFacultyUsage(fid, day, slotIdx);
+          recordRoomUsage(r.id, day, slotIdx);
+          if (labDuration === 2) {
+            recordFacultyUsage(fid, day, nextSlotIdx);
+            recordRoomUsage(r.id, day, nextSlotIdx);
+          }
+        }
 
         recordSubjectDay(ck, ba1.subject.subject_code, day);
         recordSubjectDay(ck, ba2.subject.subject_code, day);
         recordSubjectDay(ck, ba3.subject.subject_code, day);
 
-        sched1.add(b1);
-        sched2.add(b2);
-        sched3.add(b3);
-
+        sched1.add(b1); sched2.add(b2); sched3.add(b3);
         batchSplitPlaced[ck] = (batchSplitPlaced[ck] || 0) + 1;
         placed = true;
         break;
@@ -498,7 +516,8 @@ function buildCandidateSchedule({
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // PHASE 2: Batch-Split Project Labs (MinP, SBLC, etc. — same subject in parallel)
+  // PHASE 2: Batch-Split Project Labs (MinP — same subject for all batches in parallel)
+  //   Always 2-hour block. Uses lab rooms.
   // ═════════════════════════════════════════════════════════════════════════
 
   const practicalPlaced = {};
@@ -506,7 +525,7 @@ function buildCandidateSchedule({
   for (const ck of classKeys) {
     practicalPlaced[ck] = 0;
     const config = classSlotConfig[ck] || {};
-    const practicalSlotIdx = config.lab_slot_index ?? 6; // default: 2:00-3:00 PM
+    const practicalSlotIdx = config.lab_slot_index ?? 6;
     const nextPracticalSlotIdx = practicalSlotIdx + 1;
     const projectGroups = projectLabGroupsByClass[ck] || [];
 
@@ -523,15 +542,13 @@ function buildCandidateSchedule({
         const dg = grid[ck][day];
         if (dg[practicalSlotIdx] !== null || dg[nextPracticalSlotIdx] !== null) continue;
 
-        // Check all 3 batch faculty are available for both slots
         let allOk = true;
         const usedRooms = new Set();
         const placements = [];
 
         for (const ba of group.batchAssignments) {
           if (!isFacultyAvailableForBlock(ba.facultyId, day, practicalSlotIdx, nextPracticalSlotIdx)) { allOk = false; break; }
-
-          const room = findFreeRoomForBlock(roomPools.regular, day, practicalSlotIdx, nextPracticalSlotIdx, usedRooms);
+          const room = findFreeRoomForBlock(labRoomPool, day, practicalSlotIdx, nextPracticalSlotIdx, usedRooms);
           if (!room) { allOk = false; break; }
           usedRooms.add(room.id);
           placements.push({ ...ba, room });
@@ -539,28 +556,13 @@ function buildCandidateSchedule({
 
         if (!allOk || placements.length < 3) continue;
 
-        // Place it
         const labBatchAssignments = placements.map(p => ({
-          subject: p.subject,
-          facultyId: p.facultyId,
-          batchCode: p.batchCode,
-          roomId: p.room.id,
-          roomNumber: p.room.room_number,
-          isPractical: true,
-          isBatchSplit: true,
+          subject: p.subject, facultyId: p.facultyId, batchCode: p.batchCode,
+          roomId: p.room.id, roomNumber: p.room.room_number, isPractical: true, isBatchSplit: true,
         }));
-
-        const baseAssignment = {
-          isBatchSplit: true,
-          isPractical: true,
-          labBatchAssignments,
-        };
-
+        const baseAssignment = { isBatchSplit: true, isPractical: true, labBatchAssignments };
         dg[practicalSlotIdx] = baseAssignment;
-        dg[nextPracticalSlotIdx] = {
-          ...baseAssignment,
-          _labSecond: true,
-        };
+        dg[nextPracticalSlotIdx] = { ...baseAssignment, _labSecond: true };
 
         for (const p of placements) {
           recordFacultyUsage(p.facultyId, day, practicalSlotIdx);
@@ -569,7 +571,6 @@ function buildCandidateSchedule({
           recordRoomUsage(p.room.id, day, nextPracticalSlotIdx);
           recordSubjectDay(ck, p.subject.subject_code, day);
         }
-
         placed += 2;
         practicalPlaced[ck] = (practicalPlaced[ck] || 0) + 1;
       }
@@ -696,21 +697,30 @@ function buildCandidateSchedule({
 
       if (!best) continue;
 
-      // Place the lecture
-      const { day, slotIdx, room } = best;
+      // Place the lecture — use classroom rooms for theory, never lab rooms
+      const classroomPool = roomPools.regular.length ? roomPools.regular : roomPools.all;
+      const { day, slotIdx } = best;
       const dg = grid[ck][day];
+      // Re-find room with fresh check (best.room may have been taken since scoring)
+      let finalRoom = null;
+      if (homeRoom) {
+        const hr = classroomPool.find(r => r.room_number === homeRoom);
+        if (hr && isRoomFree(hr.id, day, slotIdx)) finalRoom = hr;
+      }
+      if (!finalRoom) finalRoom = findFreeRoom(classroomPool, day, slotIdx);
+      if (!finalRoom) continue;
 
       dg[slotIdx] = {
         isBatchSplit: false,
         isPractical: false,
         subject: req.subject,
         facultyId: req.facultyId,
-        roomId: room.id,
-        roomNumber: room.room_number,
+        roomId: finalRoom.id,
+        roomNumber: finalRoom.room_number,
       };
 
-      recordFacultyUsage(fid, day, slotIdx);
-      recordRoomUsage(room.id, day, slotIdx);
+      recordFacultyUsage(req.facultyId, day, slotIdx);
+      recordRoomUsage(finalRoom.id, day, slotIdx);
       recordSubjectDay(ck, req.subject.subject_code, day);
       req.lecturesAssigned += 1;
       anyPlaced = true;
@@ -840,7 +850,7 @@ async function persistSchedule({ classConfigs, grid, timeSlots, academicYear, cr
               subjectCode: row.subject?.subject_code || row.subjectCode || null,
               facultyid: row.facultyId ? BigInt(row.facultyId) : null,
               room_number: row.roomNumber || row.room_number || null,
-              batch: row.isBatchSplit ? (row.batchCode || row.batch || BATCHES[0]) : config.division,
+              batch: row.isBatchSplit ? (row.batchCode || row.batch || null) : null,
               createdBy: createdByBig,
             },
           });
@@ -863,7 +873,11 @@ async function generateSchedulesForClasses({ classConfigs, academicYear, created
   for (const c of normalized) deduped.set(classKey(c), c);
   const classes = [...deduped.values()];
 
-  const timeSlots = await loadTimeSlots();
+  // Use the branch ID, semester, and division of the first class config for slot loading
+  const branchIdForSlots = classes[0]?.branchId ?? null;
+  const semesterForSlots = classes[0]?.sem ?? null;
+  const divisionForSlots = classes[0]?.division ?? null;
+  const timeSlots = await loadTimeSlots(branchIdForSlots, semesterForSlots, divisionForSlots);
   const subjectsByPair = await loadSubjectsByPair(classes);
   const classesWithSubjects = classes.filter(c => (subjectsByPair[pairKey(c)] || []).length > 0);
   const skippedClasses = classes.filter(c => (subjectsByPair[pairKey(c)] || []).length === 0)

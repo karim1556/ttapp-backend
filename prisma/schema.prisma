@@ -73,6 +73,7 @@ model Subject {
   practical_marks  Int?    @default(0)
   passing_marks    Int?
   batch            String? @db.VarChar(10)
+  division         String? @db.VarChar(10)
 
   @@map("subjects")
 }
@@ -233,6 +234,9 @@ model Room {
 
 model TimeSlotTemplate {
   id               Int      @id @default(autoincrement())
+  branch_id        Int?     // null = shared/global template; set to branch ID for branch-specific
+  semester         Int?
+  division         String?  @db.VarChar(10)
   label            String?  @db.VarChar(50)
   startTimeHr      Int
   startTimeMinutes Int      @default(0)
@@ -246,18 +250,18 @@ model TimeSlotTemplate {
 }
 
 model ClassLabSlot {
-  id               Int      @id @default(autoincrement())
-  branch_id        Int
-  semester         Int
-  division         String   @db.VarChar(10)
-  lab_slot_index   Int      @default(3)   // Index into TimeSlotTemplate (0-based, skip breaks)
-  batch_split_slot_index Int @default(0) // Slot index for batch-split (A/B/C doing different subjects)
-  // batch_split_enabled - 0=no batch split, uses whole-division at that slot
-  batch_split_enabled Int @default(1) @db.TinyInt
-  home_room        String?  @db.VarChar(20)
-  academic_year    String?  @db.VarChar(10)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  id                   Int      @id @default(autoincrement())
+  branch_id            Int
+  semester             Int
+  division             String   @db.VarChar(10)
+  lab_slot_index       Int      @default(6)    // slot index for project/2-hr lab block (0-based)
+  batch_split_slot_index Int    @default(3)    // slot index for rotating batch-split labs
+  batch_split_enabled  Int      @default(1)    @db.TinyInt
+  lab_duration_slots   Int      @default(2)    // 1 = single-hour batch split; 2 = two-hour block
+  home_room            String?  @db.VarChar(20)
+  academic_year        String?  @db.VarChar(10)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
 
   @@unique([branch_id, semester, division, academic_year])
   @@map("class_lab_slots")
