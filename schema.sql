@@ -1,14 +1,14 @@
--- Fresh database schema generated from Prisma (source of truth)
--- Run this SQL to create all tables needed by the app
-
+-- CreateTable
 CREATE TABLE `users` (
     `uid` INTEGER NOT NULL AUTO_INCREMENT,
     `email` VARCHAR(255) NULL,
     `user_type` INTEGER NULL,
     `password` VARCHAR(255) NULL,
+
     PRIMARY KEY (`uid`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `faculty` (
     `faculty_id` INTEGER NOT NULL AUTO_INCREMENT,
     `uid` INTEGER NULL,
@@ -38,9 +38,11 @@ CREATE TABLE `faculty` (
     `branch_id` INTEGER NULL,
     `weekly_work_hours` INTEGER NULL DEFAULT 18,
     `status` TINYINT NULL DEFAULT 1,
+
     PRIMARY KEY (`faculty_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `subjects` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `subject_code` VARCHAR(200) NOT NULL,
@@ -63,9 +65,14 @@ CREATE TABLE `subjects` (
     `oral_marks` INTEGER NULL DEFAULT 0,
     `practical_marks` INTEGER NULL DEFAULT 0,
     `passing_marks` INTEGER NULL,
+    `batch` VARCHAR(10) NULL,
+    `division` VARCHAR(10) NULL,
+    `preferred_room` VARCHAR(20) NULL,
+
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `tbl_time_table` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `dateOfWeek` ENUM('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday') NULL,
@@ -78,9 +85,11 @@ CREATE TABLE `tbl_time_table` (
     `createdBy` BIGINT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
+
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `time_time_detailed` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `timetable_id` BIGINT NULL,
@@ -91,10 +100,12 @@ CREATE TABLE `time_time_detailed` (
     `createdBy` BIGINT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
+
     INDEX `time_time_detailed_timetable_id_fkey`(`timetable_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `time_table_batch_subject` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `time_table_detailed_id` BIGINT NULL,
@@ -109,10 +120,12 @@ CREATE TABLE `time_table_batch_subject` (
     `lect_on_dehalf` BIGINT NULL,
     `reason` VARCHAR(1000) NULL,
     `room_number` VARCHAR(10) NULL,
+
     INDEX `time_table_batch_subject_time_table_detailed_id_fkey`(`time_table_detailed_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `copo_user_course` (
     `usercourse_id` INTEGER NOT NULL AUTO_INCREMENT,
     `course_id` INTEGER NULL,
@@ -121,16 +134,20 @@ CREATE TABLE `copo_user_course` (
     `branch` INTEGER NULL,
     `co_count` INTEGER NULL,
     `created_at` DATETIME(3) NULL,
+
     PRIMARY KEY (`usercourse_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `copo_usercourse_users` (
     `id_usercourse_users` INTEGER NOT NULL AUTO_INCREMENT,
     `usercourse_id` INTEGER NOT NULL,
     `user_id` INTEGER NOT NULL,
+
     PRIMARY KEY (`id_usercourse_users`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `holidays` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `date` DATE NOT NULL,
@@ -139,9 +156,11 @@ CREATE TABLE `holidays` (
     `description` TEXT NULL,
     `academic_year` VARCHAR(10) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `faculty_constraints` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `faculty_id` INTEGER NOT NULL,
@@ -151,19 +170,23 @@ CREATE TABLE `faculty_constraints` (
     `preferred_slots` JSON NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
+
     UNIQUE INDEX `faculty_constraints_faculty_id_key`(`faculty_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `fcm_tokens` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `user_id` INTEGER NOT NULL,
     `token` TEXT NOT NULL,
     `updated_at` DATETIME(3) NOT NULL,
+
     UNIQUE INDEX `fcm_tokens_user_id_key`(`user_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `substitutions` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `lecture_id` BIGINT NOT NULL,
@@ -187,6 +210,7 @@ CREATE TABLE `substitutions` (
     `created_by` INTEGER NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
+
     INDEX `idx_substitutions_date`(`date`),
     INDEX `idx_substitutions_status`(`status`),
     INDEX `idx_substitutions_original_faculty`(`original_faculty_id`),
@@ -195,6 +219,7 @@ CREATE TABLE `substitutions` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `rooms` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `room_number` VARCHAR(20) NOT NULL,
@@ -204,11 +229,16 @@ CREATE TABLE `rooms` (
     `branch_id` INTEGER NULL,
     `floor` VARCHAR(10) NULL,
     `is_active` TINYINT NULL DEFAULT 1,
+
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
 CREATE TABLE `time_slot_templates` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `branch_id` INTEGER NULL,
+    `semester` INTEGER NULL,
+    `division` VARCHAR(10) NULL,
     `label` VARCHAR(50) NULL,
     `startTimeHr` INTEGER NOT NULL,
     `startTimeMinutes` INTEGER NOT NULL DEFAULT 0,
@@ -217,10 +247,59 @@ CREATE TABLE `time_slot_templates` (
     `is_break` TINYINT NULL DEFAULT 0,
     `sort_order` INTEGER NULL DEFAULT 0,
     `is_active` TINYINT NULL DEFAULT 1,
+
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- Foreign Keys
+-- CreateTable
+CREATE TABLE `class_lab_slots` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `branch_id` INTEGER NOT NULL,
+    `semester` INTEGER NOT NULL,
+    `division` VARCHAR(10) NOT NULL,
+    `lab_slot_index` INTEGER NOT NULL DEFAULT 6,
+    `batch_split_slot_index` INTEGER NOT NULL DEFAULT 3,
+    `batch_split_enabled` TINYINT NOT NULL DEFAULT 1,
+    `lab_duration_slots` INTEGER NOT NULL DEFAULT 2,
+    `home_room` VARCHAR(20) NULL,
+    `academic_year` VARCHAR(10) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `class_lab_slots_branch_id_semester_division_academic_year_key`(`branch_id`, `semester`, `division`, `academic_year`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `temporary_timetable` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `branch_id` INTEGER NOT NULL,
+    `semester` INTEGER NOT NULL,
+    `division` VARCHAR(10) NOT NULL,
+    `date` DATE NOT NULL,
+    `startTimeHr` INTEGER NOT NULL,
+    `startTimeMinutes` INTEGER NOT NULL DEFAULT 0,
+    `endTimeHr` INTEGER NOT NULL,
+    `endTimeMinutes` INTEGER NOT NULL DEFAULT 0,
+    `subjectCode` VARCHAR(100) NULL,
+    `facultyid` BIGINT NULL,
+    `room_number` VARCHAR(20) NULL,
+    `typeOfLecture` VARCHAR(50) NULL DEFAULT 'Lecture',
+    `eventName` VARCHAR(255) NULL,
+    `description` TEXT NULL,
+    `createdBy` BIGINT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
 ALTER TABLE `time_time_detailed` ADD CONSTRAINT `time_time_detailed_timetable_id_fkey` FOREIGN KEY (`timetable_id`) REFERENCES `tbl_time_table`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `time_table_batch_subject` ADD CONSTRAINT `time_table_batch_subject_time_table_detailed_id_fkey` FOREIGN KEY (`time_table_detailed_id`) REFERENCES `time_time_detailed`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `faculty_constraints` ADD CONSTRAINT `faculty_constraints_faculty_id_fkey` FOREIGN KEY (`faculty_id`) REFERENCES `faculty`(`faculty_id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
