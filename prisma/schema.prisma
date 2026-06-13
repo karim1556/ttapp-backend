@@ -74,6 +74,7 @@ model Subject {
   passing_marks    Int?
   batch            String? @db.VarChar(10)
   division         String? @db.VarChar(10)
+  preferred_room   String? @db.VarChar(20)
 
   @@map("subjects")
 }

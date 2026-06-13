@@ -826,6 +826,8 @@ const generate = async (req, res) => {
     const academicYear = req.body.academicYear || req.body.academic_year;
     const force = parseBoolean(req.body.force ?? req.body.overwrite);
     const dryRun = parseBoolean(req.body.dryRun ?? req.body.dry_run);
+    const enforceLabRooms = parseBoolean(req.body.enforceLabRooms ?? req.body.enforce_lab_rooms);
+    const fillCompact = parseBoolean(req.body.fillCompact ?? req.body.fill_compact);
 
     if (!branchIdRaw || !semRaw || !division) {
       return res.status(400).json({ success: false, message: 'branchId, sem, and division are required' });
@@ -889,6 +891,8 @@ const generate = async (req, res) => {
       division: normalizedDivision,
       academicYear,
       createdBy: req.user.uid,
+      enforceLabRooms,
+      fillCompact,
     });
 
     return res.json({
@@ -910,6 +914,8 @@ const generateAll = async (req, res) => {
     const termType = termTypeRaw ? String(termTypeRaw).trim().toLowerCase() : undefined;
     const force = parseBoolean(req.body.force ?? req.body.overwrite);
     const dryRun = parseBoolean(req.body.dryRun ?? req.body.dry_run);
+    const enforceLabRooms = parseBoolean(req.body.enforceLabRooms ?? req.body.enforce_lab_rooms);
+    const fillCompact = parseBoolean(req.body.fillCompact ?? req.body.fill_compact);
 
     if (termType && !['even', 'odd'].includes(termType)) {
       return res.status(400).json({
@@ -981,6 +987,8 @@ const generateAll = async (req, res) => {
       branchIds,
       semesters,
       termType,
+      enforceLabRooms,
+      fillCompact,
     });
 
     return res.json({

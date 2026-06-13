@@ -1,0 +1,248 @@
+=== Regenerating Timetables starting from 9 AM ===
+
+Generation complete! Status: {
+  attempts: 150,
+  bestScore: 1346,
+  placedLectures: 68,
+  requiredLectures: 68,
+  unplacedLectures: 0,
+  batchSplitSessions: 18,
+  practicalSessions: 4,
+  preferredMatches: 0
+}
+
+============================================================
+  WEEKLY TIMETABLE FOR IT SEM 4 - DIV A
+============================================================
+
+### MONDAY
+| 09:00 - 10:00 | Lecture: **MDM** (Prof. Nitin Ingale) - Room 212 |
+| 10:00 - 11:00 | Lecture: **MPP** (Prof. Ankur Chavan) - Room 214 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch B: **MDM-B** (Prof. Nilesh Satpute) in 101 | Batch A: **BMD-A** (Prof. Nilesh Wadekar) in 102 | Batch C: **UNIX-C** (Prof. Priya Mane) in 103 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch B: **MDM-B** (Prof. Nilesh Satpute) in 101 | Batch A: **BMD-A** (Prof. Nilesh Wadekar) in 102 | Batch C: **UNIX-C** (Prof. Priya Mane) in 103 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **AMT-II** (Prof. Tejaswini Naik) - Room 214 |
+| 15:00 - 16:00 | Lecture: **DT** (Dr. Vinod Sakpal) - Room 214 |
+| 16:00 - 17:00 | Lecture: **CNND** (Prof. Sandip Patil) - Room 214 |
+
+### TUESDAY
+| 09:00 - 10:00 | Lecture: **AMT-II** (Prof. Tejaswini Naik) - Room 214 |
+| 10:00 - 11:00 | Lecture: **DT** (Dr. Vinod Sakpal) - Room 214 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch A: **NL-A** (Prof. Sandip Patil) in 101 | Batch B: **DT-B** (Dr. Vinod Sakpal) in 102 | Batch C: **MDM-C** (Prof. Nitin Ingale) in 103 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch A: **NL-A** (Prof. Sandip Patil) in 101 | Batch B: **DT-B** (Dr. Vinod Sakpal) in 102 | Batch C: **MDM-C** (Prof. Nitin Ingale) in 103 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **OS** (Prof. Priya Mane) - Room 214 |
+| 15:00 - 16:00 | Lecture: **OS** (Prof. Priya Mane) - Room 214 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### WEDNESDAY
+| 09:00 - 10:00 | Lecture: **CNND** (Prof. Sandip Patil) - Room 212 |
+| 10:00 - 11:00 | Lecture: **BMD** (Prof. Nilesh Wadekar) - Room 212 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch C: **DT-C** (Dr. Vinod Sakpal) in 101 | Batch B: **NL-B** (Prof. Sandip Patil) in 102 | Batch A: **MDM-A** (Prof. Nitin Ingale) in 103 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch C: **DT-C** (Dr. Vinod Sakpal) in 101 | Batch B: **NL-B** (Prof. Sandip Patil) in 102 | Batch A: **MDM-A** (Prof. Nitin Ingale) in 103 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch A: **MinP-A** (Prof. Ankur Chavan) in 105 | Batch B: **MinP-B** (Prof. Ankur Chavan) in 107 | Batch C: **MinP-C** (Prof. Ankur Chavan) in 112 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch A: **MinP-A** (Prof. Ankur Chavan) in 105 | Batch B: **MinP-B** (Prof. Ankur Chavan) in 107 | Batch C: **MinP-C** (Prof. Ankur Chavan) in 112 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### THURSDAY
+| 09:00 - 10:00 | Lecture: **OS** (Prof. Priya Mane) - Room 214 |
+| 10:00 - 11:00 | Lecture: **OE** (Prof. Atul Tarwade) - Room 214 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch A: **DT-A** (Dr. Vinod Sakpal) in 101 | Batch B: **BMD-B** (Prof. Nilesh Wadekar) in 102 | Batch C: **NL-C** (Prof. Sandip Patil) in 103 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch A: **DT-A** (Dr. Vinod Sakpal) in 101 | Batch B: **BMD-B** (Prof. Nilesh Wadekar) in 102 | Batch C: **NL-C** (Prof. Sandip Patil) in 103 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **AMT-II** (Prof. Tejaswini Naik) - Room 214 |
+| 15:00 - 16:00 | *[Free Period]* |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### FRIDAY
+| 09:00 - 10:00 | Lecture: **CNND** (Prof. Sandip Patil) - Room 212 |
+| 10:00 - 11:00 | Lecture: **MDM** (Prof. Nitin Ingale) - Room 212 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **MPP** (Prof. Ankur Chavan) - Room 213 |
+| 12:20 - 13:20 | Lecture: **OE** (Prof. Atul Tarwade) - Room 213 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **BMD** (Prof. Nilesh Wadekar) - Room 214 |
+| 15:00 - 16:00 | *[Free Period]* |
+| 16:00 - 17:00 | *[Free Period]* |
+
+============================================================
+  WEEKLY TIMETABLE FOR IT SEM 4 - DIV B
+============================================================
+
+### MONDAY
+| 09:00 - 10:00 | Lecture: **CNND** (Prof. Sandip Patil) - Room 214 |
+| 10:00 - 11:00 | Lecture: **DT** (Dr. Vinod Sakpal) - Room 212 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **MPP** (Prof. Ankur Chavan) - Room 214 |
+| 12:20 - 13:20 | Lecture: **DT** (Dr. Vinod Sakpal) - Room 214 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch B: **UNIX-B** (Prof. Priya Mane) in 101 | Batch C: **BMD-C** (Prof. Nilesh Wadekar) in 102 | Batch A: **MDM-A** (Prof. Nitin Ingale) in 103 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch B: **UNIX-B** (Prof. Priya Mane) in 101 | Batch C: **BMD-C** (Prof. Nilesh Wadekar) in 102 | Batch A: **MDM-A** (Prof. Nitin Ingale) in 103 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### TUESDAY
+| 09:00 - 10:00 | Lab / Batch Split: Batch A: **MinP-A** (Prof. Ankur Chavan) in 105 | Batch B: **MinP-B** (Prof. Ankur Chavan) in 107 | Batch C: **MinP-C** (Prof. Ankur Chavan) in 112 |
+| 10:00 - 11:00 | Lab / Batch Split: Batch A: **MinP-A** (Prof. Ankur Chavan) in 105 | Batch B: **MinP-B** (Prof. Ankur Chavan) in 107 | Batch C: **MinP-C** (Prof. Ankur Chavan) in 112 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **BMD** (Prof. Nilesh Wadekar) - Room 214 |
+| 12:20 - 13:20 | Lecture: **OS** (Prof. Priya Mane) - Room 214 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch C: **MDM-C** (Prof. Nitin Ingale) in 101 | Batch B: **DT-B** (Dr. Vinod Sakpal) in 102 | Batch A: **BMD-A** (Prof. Nilesh Wadekar) in 103 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch C: **MDM-C** (Prof. Nitin Ingale) in 101 | Batch B: **DT-B** (Dr. Vinod Sakpal) in 102 | Batch A: **BMD-A** (Prof. Nilesh Wadekar) in 103 |
+| 16:00 - 17:00 | Lecture: **CNND** (Prof. Sandip Patil) - Room 214 |
+
+### WEDNESDAY
+| 09:00 - 10:00 | Lecture: **OS** (Prof. Priya Mane) - Room 214 |
+| 10:00 - 11:00 | Lecture: **MDM** (Prof. Nitin Ingale) - Room 214 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **AMT-II** (Prof. Tejaswini Naik) - Room 214 |
+| 12:20 - 13:20 | Lecture: **AMT-II** (Prof. Tejaswini Naik) - Room 214 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch C: **NL-C** (Prof. Sandip Patil) in 101 | Batch B: **BMD-B** (Prof. Nilesh Wadekar) in 102 | Batch A: **UNIX-A** (Prof. Priya Mane) in 103 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch C: **NL-C** (Prof. Sandip Patil) in 101 | Batch B: **BMD-B** (Prof. Nilesh Wadekar) in 102 | Batch A: **UNIX-A** (Prof. Priya Mane) in 103 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### THURSDAY
+| 09:00 - 10:00 | Lecture: **MPP** (Prof. Ankur Chavan) - Room 212 |
+| 10:00 - 11:00 | Lecture: **CNND** (Prof. Sandip Patil) - Room 212 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **OS** (Prof. Priya Mane) - Room 214 |
+| 12:20 - 13:20 | Lecture: **MDM** (Prof. Nitin Ingale) - Room 214 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch B: **MDM-B** (Prof. Nilesh Satpute) in 101 | Batch A: **NL-A** (Prof. Sandip Patil) in 102 | Batch C: **DT-C** (Dr. Vinod Sakpal) in 103 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch B: **MDM-B** (Prof. Nilesh Satpute) in 101 | Batch A: **NL-A** (Prof. Sandip Patil) in 102 | Batch C: **DT-C** (Dr. Vinod Sakpal) in 103 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### FRIDAY
+| 09:00 - 10:00 | Lecture: **AMT-II** (Prof. Tejaswini Naik) - Room 214 |
+| 10:00 - 11:00 | Lecture: **OE** (Prof. Atul Tarwade) - Room 214 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **OE** (Prof. Atul Tarwade) - Room 214 |
+| 12:20 - 13:20 | Lecture: **BMD** (Prof. Nilesh Wadekar) - Room 214 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch C: **UNIX-C** (Prof. Priya Mane) in 101 | Batch B: **NL-B** (Prof. Sandip Patil) in 102 | Batch A: **DT-A** (Dr. Vinod Sakpal) in 103 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch C: **UNIX-C** (Prof. Priya Mane) in 101 | Batch B: **NL-B** (Prof. Sandip Patil) in 102 | Batch A: **DT-A** (Dr. Vinod Sakpal) in 103 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+============================================================
+  WEEKLY TIMETABLE FOR IT SEM 6 - DIV A
+============================================================
+
+### MONDAY
+| 09:00 - 10:00 | Lab / Batch Split: Batch A: **MAD/PWA-A** (Ms. Mayuri Lohar) in 101 | Batch B: **DSPS-B** (Ms. Archana Salaskar) in 102 | Batch C: **WebX-C** (Dr. Medha Kulkarni) in 103 |
+| 10:00 - 11:00 | Lab / Batch Split: Batch A: **MAD/PWA-A** (Ms. Mayuri Lohar) in 101 | Batch B: **DSPS-B** (Ms. Archana Salaskar) in 102 | Batch C: **WebX-C** (Dr. Medha Kulkarni) in 103 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **DMBI** (Mr. Nilesh Mali) - Room 212 |
+| 12:20 - 13:20 | Lecture: **DMBI** (Mr. Nilesh Mali) - Room 212 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **DMBI** (Mr. Nilesh Mali) - Room 212 |
+| 15:00 - 16:00 | *[Free Period]* |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### TUESDAY
+| 09:00 - 10:00 | Lab / Batch Split: Batch C: **MAD/PWA-C** (Ms. Mayuri Lohar) in 101 | Batch A: **DSPS-A** (Ms. Archana Salaskar) in 102 | Batch B: **SNL-B** (Prof. Priya Mane) in 103 |
+| 10:00 - 11:00 | Lab / Batch Split: Batch C: **MAD/PWA-C** (Ms. Mayuri Lohar) in 101 | Batch A: **DSPS-A** (Ms. Archana Salaskar) in 102 | Batch B: **SNL-B** (Prof. Priya Mane) in 103 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **Web X** (Dr. Medha Kulkarni) - Room 212 |
+| 12:20 - 13:20 | Lecture: **AIDS-I** (Ms. Archana Salaskar) - Room 212 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch A: **Mini Project-A** (Mr. Nilesh Mali) in 105 | Batch B: **Mini Project-B** (Mr. Sachin Barahate) in 107 | Batch C: **Mini Project-C** (Dr. Vedika Avhad) in 112 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch A: **Mini Project-A** (Mr. Nilesh Mali) in 105 | Batch B: **Mini Project-B** (Mr. Sachin Barahate) in 107 | Batch C: **Mini Project-C** (Dr. Vedika Avhad) in 112 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### WEDNESDAY
+| 09:00 - 10:00 | Lab / Batch Split: Batch B: **BI-B** (Mr. Nilesh Mali) in 101 | Batch C: **DSPS-C** (Ms. Archana Salaskar) in 102 | Batch A: **SNL-A** (Ms. Ashwini Phalke) in 103 |
+| 10:00 - 11:00 | Lab / Batch Split: Batch B: **BI-B** (Mr. Nilesh Mali) in 101 | Batch C: **DSPS-C** (Ms. Archana Salaskar) in 102 | Batch A: **SNL-A** (Ms. Ashwini Phalke) in 103 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **Web X** (Dr. Medha Kulkarni) - Room 212 |
+| 12:20 - 13:20 | Lecture: **WT** (Ms. Ashwini Phalke) - Room 212 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **WT** (Ms. Ashwini Phalke) - Room 212 |
+| 15:00 - 16:00 | *[Free Period]* |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### THURSDAY
+| 09:00 - 10:00 | Lab / Batch Split: Batch A: **WebX-A** (Dr. Medha Kulkarni) in 101 | Batch C: **BI-C** (Mr. Nilesh Mali) in 102 | Batch B: **MAD/PWA-B** (Ms. Mayuri Lohar) in 103 |
+| 10:00 - 11:00 | Lab / Batch Split: Batch A: **WebX-A** (Dr. Medha Kulkarni) in 101 | Batch C: **BI-C** (Mr. Nilesh Mali) in 102 | Batch B: **MAD/PWA-B** (Ms. Mayuri Lohar) in 103 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **WT** (Ms. Ashwini Phalke) - Room 212 |
+| 12:20 - 13:20 | Lecture: **AIDS-I** (Ms. Archana Salaskar) - Room 212 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **Web X** (Dr. Medha Kulkarni) - Room 212 |
+| 15:00 - 16:00 | *[Free Period]* |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### FRIDAY
+| 09:00 - 10:00 | Lab / Batch Split: Batch C: **SNL-C** (Prof. Priya Mane) in 101 | Batch A: **BI-A** (Mr. Nilesh Mali) in 102 | Batch B: **WebX-B** (Dr. Medha Kulkarni) in 103 |
+| 10:00 - 11:00 | Lab / Batch Split: Batch C: **SNL-C** (Prof. Priya Mane) in 101 | Batch A: **BI-A** (Mr. Nilesh Mali) in 102 | Batch B: **WebX-B** (Dr. Medha Kulkarni) in 103 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lecture: **SA** (Ms. Mayuri Lohar) - Room 212 |
+| 12:20 - 13:20 | Lecture: **SA** (Ms. Mayuri Lohar) - Room 212 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **SA** (Ms. Mayuri Lohar) - Room 212 |
+| 15:00 - 16:00 | Lecture: **AIDS-I** (Ms. Archana Salaskar) - Room 212 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+============================================================
+  WEEKLY TIMETABLE FOR IT SEM 6 - DIV B
+============================================================
+
+### MONDAY
+| 09:00 - 10:00 | Lecture: **DMBI** (Mr. Nilesh Mali) - Room 213 |
+| 10:00 - 11:00 | Lecture: **WT** (Ms. Ashwini Phalke) - Room 213 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch C: **SNL-C** (Ms. Ashwini Phalke) in 105 | Batch A: **MAD/PWA-A** (Ms. Mayuri Lohar) in 107 | Batch B: **WebX-B** (Prof. Atul Tarwade) in 112 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch C: **SNL-C** (Ms. Ashwini Phalke) in 105 | Batch A: **MAD/PWA-A** (Ms. Mayuri Lohar) in 107 | Batch B: **WebX-B** (Prof. Atul Tarwade) in 112 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lab / Batch Split: Batch A: **Mini Project-A** (Dr. Medha Kulkarni) in 105 | Batch B: **Mini Project-B** (Ms. Archana Salaskar) in 107 | Batch C: **Mini Project-C** (Prof. Nilesh Satpute) in 112 |
+| 15:00 - 16:00 | Lab / Batch Split: Batch A: **Mini Project-A** (Dr. Medha Kulkarni) in 105 | Batch B: **Mini Project-B** (Ms. Archana Salaskar) in 107 | Batch C: **Mini Project-C** (Prof. Nilesh Satpute) in 112 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### TUESDAY
+| 09:00 - 10:00 | Lecture: **Web X** (Dr. Medha Kulkarni) - Room 213 |
+| 10:00 - 11:00 | Lecture: **Web X** (Dr. Medha Kulkarni) - Room 213 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch B: **MAD/PWA-B** (Ms. Mayuri Lohar) in 105 | Batch C: **WebX-C** (Prof. Atul Tarwade) in 107 | Batch A: **SNL-A** (Ms. Ashwini Phalke) in 112 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch B: **MAD/PWA-B** (Ms. Mayuri Lohar) in 105 | Batch C: **WebX-C** (Prof. Atul Tarwade) in 107 | Batch A: **SNL-A** (Ms. Ashwini Phalke) in 112 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **WT** (Ms. Ashwini Phalke) - Room 213 |
+| 15:00 - 16:00 | Lecture: **AIDS-I** (Ms. Archana Salaskar) - Room 213 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### WEDNESDAY
+| 09:00 - 10:00 | Lecture: **SA** (Ms. Mayuri Lohar) - Room 213 |
+| 10:00 - 11:00 | Lecture: **SA** (Ms. Mayuri Lohar) - Room 213 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch C: **DSPS-C** (Ms. Archana Salaskar) in 105 | Batch A: **WebX-A** (Prof. Atul Tarwade) in 107 | Batch B: **BI-B** (Mr. Sachin Barahate) in 112 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch C: **DSPS-C** (Ms. Archana Salaskar) in 105 | Batch A: **WebX-A** (Prof. Atul Tarwade) in 107 | Batch B: **BI-B** (Mr. Sachin Barahate) in 112 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **DMBI** (Mr. Nilesh Mali) - Room 213 |
+| 15:00 - 16:00 | Lecture: **Web X** (Dr. Medha Kulkarni) - Room 213 |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### THURSDAY
+| 09:00 - 10:00 | Lecture: **WT** (Ms. Ashwini Phalke) - Room 213 |
+| 10:00 - 11:00 | Lecture: **AIDS-I** (Ms. Archana Salaskar) - Room 213 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | Lab / Batch Split: Batch C: **MAD/PWA-C** (Ms. Mayuri Lohar) in 105 | Batch A: **BI-A** (Mr. Nilesh Mali) in 107 | Batch B: **DSPS-B** (Prof. Atul Tarwade) in 112 |
+| 12:20 - 13:20 | Lab / Batch Split: Batch C: **MAD/PWA-C** (Ms. Mayuri Lohar) in 105 | Batch A: **BI-A** (Mr. Nilesh Mali) in 107 | Batch B: **DSPS-B** (Prof. Atul Tarwade) in 112 |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | Lecture: **DMBI** (Mr. Nilesh Mali) - Room 213 |
+| 15:00 - 16:00 | *[Free Period]* |
+| 16:00 - 17:00 | *[Free Period]* |
+
+### FRIDAY
+| 09:00 - 10:00 | Lecture: **AIDS-I** (Ms. Archana Salaskar) - Room 213 |
+| 10:00 - 11:00 | Lecture: **SA** (Ms. Mayuri Lohar) - Room 213 |
+| 11:00 - 11:20 | **[BREAK]** |
+| 11:20 - 12:20 | *[Free Period]* |
+| 12:20 - 13:20 | *[Free Period]* |
+| 13:20 - 14:00 | **[BREAK]** |
+| 14:00 - 15:00 | *[Free Period]* |
+| 15:00 - 16:00 | *[Free Period]* |
+| 16:00 - 17:00 | *[Free Period]* |

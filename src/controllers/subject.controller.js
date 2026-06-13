@@ -10,6 +10,8 @@ const normalize = (s) => ({
   weeklyHours:     s.weekly_hours,
   semesterHours:   s.semester_hours,
   professorAssign: s.professor_assign,
+  preferredRoomNumber: s.preferred_room || null,
+  preferredRoom:       s.preferred_room || null,
 });
 
 // ── GET /api/subjects ────────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ const create = async (req, res) => {
       numExperiments, num_experiments,
       numAssignments, num_assignments,
       experiments, theory,
+      preferredRoom, preferred_room,
     } = req.body;
 
     const parsedWeeklyHours = (weeklyHours ?? weekly_hours) !== undefined
@@ -90,6 +93,7 @@ const create = async (req, res) => {
             professor_assign: batchProf,
             batch:           batch,
             division:        division      || null,
+            preferred_room:  preferredRoom || preferred_room || null,
             max_marks:       (maxMarks ?? max_marks)             ? parseInt(maxMarks ?? max_marks) : 0,
             oral_marks:      (oralMarks ?? oral_marks)           ? parseInt(oralMarks ?? oral_marks) : 0,
             practical_marks: (practicalMarks ?? practical_marks)  ? parseInt(practicalMarks ?? practical_marks) : 0,
@@ -124,6 +128,7 @@ const create = async (req, res) => {
         acad_year:       acadYear      || null,
         professor_assign: baseProf,
         division:        division      || null,
+        preferred_room:  preferredRoom || preferred_room || null,
         max_marks:       (maxMarks ?? max_marks)             ? parseInt(maxMarks ?? max_marks) : 0,
         oral_marks:      (oralMarks ?? oral_marks)           ? parseInt(oralMarks ?? oral_marks) : 0,
         practical_marks: (practicalMarks ?? practical_marks)  ? parseInt(practicalMarks ?? practical_marks) : 0,
@@ -161,6 +166,7 @@ const update = async (req, res) => {
       numExperiments, num_experiments,
       numAssignments, num_assignments,
       experiments, theory,
+      preferredRoom, preferred_room,
     } = req.body;
 
     const data = {};
@@ -205,6 +211,11 @@ const update = async (req, res) => {
     if (nAss         !== undefined) data.num_assignments = parseInt(nAss);
     if (experiments  !== undefined) data.experiments = experiments ?? null;
     if (theory       !== undefined) data.theory       = theory       ?? null;
+
+    const prefRoom = preferredRoom !== undefined ? preferredRoom : preferred_room;
+    if (prefRoom !== undefined) {
+      data.preferred_room = prefRoom;
+    }
 
     const subject = await prisma.subject.update({ where: { id }, data });
     return res.json({ success: true, data: normalize(subject) });
