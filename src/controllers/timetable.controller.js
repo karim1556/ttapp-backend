@@ -220,9 +220,15 @@ async function collectGenerationPreflightIssues({ classConfigs }) {
     prisma.faculty.findMany({ include: { constraints: true } }),
   ]);
 
-  const nonBreakSlots = timeSlots.filter((s) => !s.is_break);
-  if (!nonBreakSlots.length) {
-    issues.push('No active teaching time slots found. Configure periods in Time Slots.');
+  const uniqueBranchIds = [...new Set(classConfigs.map((c) => c.branchId))];
+  for (const bid of uniqueBranchIds) {
+    let slotsForBranch = timeSlots.filter((s) => s.branch_id === bid && !s.is_break);
+    if (slotsForBranch.length === 0) {
+      slotsForBranch = timeSlots.filter((s) => s.branch_id === null && !s.is_break);
+    }
+    if (slotsForBranch.length === 0) {
+      issues.push(`No active teaching time slots found for department ${branchLabel(bid)}. Configure periods in Time Slots.`);
+    }
   }
 
   if (!rooms.length) {
