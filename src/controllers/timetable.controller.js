@@ -1091,6 +1091,34 @@ const updateSlot = async (req, res) => {
   }
 };
 
+// Validate no conflicts for a lecture being moved to a slot
+async function validateMove(lecture, targetSlot, excludeIds) {
+  if (lecture.facultyid) {
+    const conflict = await findFacultyConflict({
+      excludeIds,
+      facultyId: lecture.facultyid,
+      dayName: targetSlot.timetable.dateOfWeek,
+      startTimeHr: targetSlot.startTimeHr,
+      startTimeMinutes: targetSlot.startTimeMinutes,
+    });
+    if (conflict) {
+      throw new Error(`Faculty conflict: ${lecture.faculty_name || 'Teacher'} is already assigned at ${targetSlot.timetable.dateOfWeek} ${targetSlot.startTimeDisplay || (targetSlot.startTimeHr.toString().padLeft(2, '0') + ':' + targetSlot.startTimeMinutes.toString().padLeft(2, '0'))}`);
+    }
+  }
+  if (normalizeRoomNumber(lecture.room_number)) {
+    const conflict = await findRoomConflict({
+      excludeIds,
+      roomNumber: lecture.room_number,
+      dayName: targetSlot.timetable.dateOfWeek,
+      startTimeHr: targetSlot.startTimeHr,
+      startTimeMinutes: targetSlot.startTimeMinutes,
+    });
+    if (conflict) {
+      throw new Error(`Room conflict: Room ${lecture.room_number} is already occupied at ${targetSlot.timetable.dateOfWeek} ${targetSlot.startTimeDisplay || (targetSlot.startTimeHr.toString().padLeft(2, '0') + ':' + targetSlot.startTimeMinutes.toString().padLeft(2, '0'))}`);
+    }
+  }
+}
+
 // ── PUT /api/timetable/slots/:id/move ───────────────────────────────────────
 const moveSlot = async (req, res) => {
   try {
@@ -1135,125 +1163,138 @@ const moveSlot = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Target slot not found' });
     }
 
-    const targetLecture = await prisma.timeTableBatchSubject.findFirst({
-      where: { time_table_detailed_id: targetSlotId },
-      include: {
-        time_slot: {
-          include: { timetable: true },
-        },
-      },
-      orderBy: { id: 'asc' },
+    // Load all slots for this day and class to detect block sequence (consecutive hours)
+    const allSlots = await prisma.timeTimeDetailed.findMany({
+      where: { timetable_id: sourceLecture.time_slot.timetable_id },
+      orderBy: [{ startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      include: { batch_subjects: true },
     });
 
-    const sourceDay = sourceLecture.time_slot.timetable.dateOfWeek;
-    const sourceStartHr = sourceLecture.time_slot.startTimeHr;
-    const sourceStartMin = sourceLecture.time_slot.startTimeMinutes;
-    const targetDay = targetSlot.timetable.dateOfWeek;
-    const targetStartHr = targetSlot.startTimeHr;
-    const targetStartMin = targetSlot.startTimeMinutes;
+    const targetAllSlots = await prisma.timeTimeDetailed.findMany({
+      where: { timetable_id: targetSlot.timetable_id },
+      orderBy: [{ startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
+      include: { batch_subjects: true },
+    });
 
-    const sourceExclude = [id];
-    if (targetLecture && swap) sourceExclude.push(targetLecture.id);
+    const sourceIndex = allSlots.findIndex(s => s.id === sourceSlotId);
+    const targetIndex = targetAllSlots.findIndex(s => s.id === targetSlotId);
 
-    if (sourceLecture.facultyid) {
-      const facultyConflict = await findFacultyConflict({
-        excludeIds: sourceExclude,
-        facultyId: sourceLecture.facultyid,
-        dayName: targetDay,
-        startTimeHr: targetStartHr,
-        startTimeMinutes: targetStartMin,
-      });
+    if (sourceIndex === -1 || targetIndex === -1) {
+      return res.status(400).json({ success: false, message: 'Slot index resolve failed' });
+    }
 
-      if (facultyConflict) {
-        return res.status(409).json({
-          success: false,
-          message: 'Faculty conflict at target slot',
-        });
+    // Determine block size (lab consecutive slots detection)
+    let blockLength = 1;
+    let sourceStart = sourceIndex;
+
+    const isLab = sourceLecture.typeOfLecture === 'Lab';
+    if (isLab) {
+      // Look back
+      if (sourceIndex > 0) {
+        const prevSlot = allSlots[sourceIndex - 1];
+        const prevLecs = prevSlot.batch_subjects;
+        if (prevLecs.some(l => l.typeOfLecture === 'Lab' && l.subjectCode === sourceLecture.subjectCode)) {
+          sourceStart = sourceIndex - 1;
+          blockLength = 2;
+        }
+      }
+      // Look forward (only if we didn't find a look back)
+      if (blockLength === 1 && sourceIndex + 1 < allSlots.length) {
+        const nextSlot = allSlots[sourceIndex + 1];
+        const nextLecs = nextSlot.batch_subjects;
+        if (nextLecs.some(l => l.typeOfLecture === 'Lab' && l.subjectCode === sourceLecture.subjectCode)) {
+          blockLength = 2;
+        }
       }
     }
 
-    if (normalizeRoomNumber(sourceLecture.room_number)) {
-      const roomConflict = await findRoomConflict({
-        excludeIds: sourceExclude,
-        roomNumber: sourceLecture.room_number,
-        dayName: targetDay,
-        startTimeHr: targetStartHr,
-        startTimeMinutes: targetStartMin,
-      });
+    // Prepare block mappings
+    const moves = [];
+    let hasBoundaryError = false;
 
-      if (roomConflict) {
-        return res.status(409).json({
-          success: false,
-          message: 'Room conflict at target slot',
-        });
+    for (let offset = 0; offset < blockLength; offset++) {
+      const srcIdx = sourceStart + offset;
+      const destIdx = targetIndex + offset;
+
+      if (srcIdx >= allSlots.length || destIdx >= targetAllSlots.length) {
+        hasBoundaryError = true;
+        break;
       }
+
+      moves.push({
+        srcSlot: allSlots[srcIdx],
+        destSlot: targetAllSlots[destIdx],
+      });
     }
 
-    if (targetLecture && !swap) {
+    if (hasBoundaryError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot move lab block: target slot sequence exceeds day schedule limits.',
+      });
+    }
+
+    // Collect all lecture IDs involved in the transaction to exclude from conflict validation
+    const sourceLecIds = moves.flatMap(m => m.srcSlot.batch_subjects.map(l => l.id));
+    const targetLecIds = moves.flatMap(m => m.destSlot.batch_subjects.map(l => l.id));
+    const allInvolvedIds = [...sourceLecIds, ...targetLecIds];
+
+    // Conflict Check
+    try {
+      for (const m of moves) {
+        // Validate source lectures moving to destination slot
+        for (const lec of m.srcSlot.batch_subjects) {
+          await validateMove(lec, m.destSlot, allInvolvedIds);
+        }
+
+        // If swap is enabled, validate target lectures moving to source slot
+        if (swap) {
+          for (const lec of m.destSlot.batch_subjects) {
+            await validateMove(lec, m.srcSlot, allInvolvedIds);
+          }
+        } else if (m.destSlot.batch_subjects.length > 0) {
+          return res.status(409).json({
+            success: false,
+            message: 'Target slot is already occupied. Enable swap to move.',
+          });
+        }
+      }
+    } catch (validationError) {
       return res.status(409).json({
         success: false,
-        message: 'Target slot already contains a lecture. Enable swap to continue.',
+        message: validationError.message,
       });
     }
 
-    if (targetLecture) {
-      const targetExclude = [targetLecture.id, id];
-
-      if (targetLecture.facultyid) {
-        const conflict = await findFacultyConflict({
-          excludeIds: targetExclude,
-          facultyId: targetLecture.facultyid,
-          dayName: sourceDay,
-          startTimeHr: sourceStartHr,
-          startTimeMinutes: sourceStartMin,
-        });
-
-        if (conflict) {
-          return res.status(409).json({
-            success: false,
-            message: 'Faculty conflict while swapping into source slot',
-          });
-        }
-      }
-
-      if (normalizeRoomNumber(targetLecture.room_number)) {
-        const conflict = await findRoomConflict({
-          excludeIds: targetExclude,
-          roomNumber: targetLecture.room_number,
-          dayName: sourceDay,
-          startTimeHr: sourceStartHr,
-          startTimeMinutes: sourceStartMin,
-        });
-
-        if (conflict) {
-          return res.status(409).json({
-            success: false,
-            message: 'Room conflict while swapping into source slot',
-          });
-        }
-      }
-    }
-
+    // Run transaction
     await prisma.$transaction(async (tx) => {
-      await tx.timeTableBatchSubject.update({
-        where: { id },
-        data: { time_table_detailed_id: targetSlotId },
-      });
+      for (const m of moves) {
+        // Move source lectures to dest
+        for (const lec of m.srcSlot.batch_subjects) {
+          await tx.timeTableBatchSubject.update({
+            where: { id: lec.id },
+            data: { time_table_detailed_id: m.destSlot.id },
+          });
+        }
 
-      if (targetLecture && swap) {
-        await tx.timeTableBatchSubject.update({
-          where: { id: targetLecture.id },
-          data: { time_table_detailed_id: sourceSlotId },
-        });
+        // Swap dest lectures to source
+        if (swap) {
+          for (const lec of m.destSlot.batch_subjects) {
+            await tx.timeTableBatchSubject.update({
+              where: { id: lec.id },
+              data: { time_table_detailed_id: m.srcSlot.id },
+            });
+          }
+        }
       }
     });
 
     return res.json({
       success: true,
-      message: targetLecture && swap ? 'Lecture swapped successfully' : 'Lecture moved successfully',
+      message: swap && targetLecIds.length > 0 ? 'Lectures swapped successfully' : 'Lectures moved successfully',
       data: {
         moved: true,
-        swapped: Boolean(targetLecture && swap),
+        swapped: swap && targetLecIds.length > 0,
         targetSlotId: Number(targetSlotId),
       },
     });
