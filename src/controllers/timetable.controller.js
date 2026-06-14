@@ -1167,13 +1167,13 @@ const moveSlot = async (req, res) => {
     const allSlots = await prisma.timeTimeDetailed.findMany({
       where: { timetable_id: sourceLecture.time_slot.timetable_id },
       orderBy: [{ startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
-      include: { batch_subjects: true },
+      include: { batch_subjects: true, timetable: true },
     });
 
     const targetAllSlots = await prisma.timeTimeDetailed.findMany({
       where: { timetable_id: targetSlot.timetable_id },
       orderBy: [{ startTimeHr: 'asc' }, { startTimeMinutes: 'asc' }],
-      include: { batch_subjects: true },
+      include: { batch_subjects: true, timetable: true },
     });
 
     const sourceIndex = allSlots.findIndex(s => s.id === sourceSlotId);
