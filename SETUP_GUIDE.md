@@ -1,179 +1,171 @@
-# TTAPP — Complete Setup Guide for Client Testing
+# 🕒 TT Manager — Complete Local Setup Guide
 
-This guide will help you set up and run all 3 parts of the project on your local machine:
-- **Backend API** (Express.js + MySQL)
-- **React Website** (ttapp-web)
-- **Flutter Android App** (ttapp)
+Welcome! This guide is designed to help you get the entire college timetable system up and running on your local machine, even if you don't have a background in software development.
 
----
-
-## 📦 Prerequisites
-
-Install these on your machine first:
-
-1. **MySQL** — [Download MySQL Community Server](https://dev.mysql.com/downloads/mysql/) (free)
-2. **Node.js v18+** — [Download Node.js](https://nodejs.org/) (free)
-3. **Flutter SDK** — [Install Flutter](https://docs.flutter.dev/get-started/install) (free, for building APK)
-4. **Git** (optional) — to clone the project
+The project is split into **three parts**:
+1. **💾 Backend API** (`ttapp-backend`): The brains of the application that manages data and generates timetables.
+2. **🌐 React Web Portal** (`ttapp-web`): The admin website interface.
+3. **📱 Flutter Mobile App** (`ttapp`): The app interface for students/faculty/admins.
 
 ---
 
-## 🗄️ Step 1: Setup MySQL Database
+## 🗺️ System Architecture
 
-### 1.1 Install & Start MySQL
-- Install MySQL from the link above
-- Remember the **root password** you set during installation
-- Start MySQL service
-
-### 1.2 Create the Database
-Open MySQL command line or any MySQL client (like MySQL Workbench) and run:
-```sql
-CREATE DATABASE ttapp_db;
+```mermaid
+graph TD
+    Web[🌐 React Web App] -->|HTTP Requests| API[⚙️ Express.js Backend API]
+    App[📱 Flutter Android App] -->|HTTP Requests| API
+    API -->|Queries & Transactions| DB[(🗄️ MySQL Database)]
 ```
-
-### 1.3 Import the Schema
-In the `ttapp-backend` folder, there's a `schema.sql` file. Run it:
-```bash
-# Via command line (replace root and password with yours)
-mysql -u root -p ttapp_db < schema.sql
-
-# Or open schema.sql in MySQL Workbench and execute it
-```
-
-This creates all 14 tables with the correct structure.
 
 ---
 
-## ⚙️ Step 2: Start the Backend API
+## 📦 Step 0: Install the Basics
 
-```bash
-# Navigate to backend folder
-cd ttapp-backend
+Before doing anything, you need to install these programs on your computer. Download and install them using their default settings:
 
-# Install dependencies
-npm install
-
-# Copy and edit the environment file
-cp .env.example .env
-```
-
-### Edit `.env` file:
-```
-DATABASE_URL="mysql://root:YOUR_PASSWORD@localhost:3306/ttapp_db"
-JWT_SECRET="any_random_long_string_here"
-JWT_EXPIRES_IN="7d"
-PORT=3000
-NODE_ENV=development
-```
-
-### Start the server:
-```bash
-npm start
-```
-✅ Backend runs at: **http://localhost:3000**
-
-To test: Open browser and go to `http://localhost:3000/api/admin/stats` — you should see JSON data.
+1. **Node.js (v18 or v20)**
+   - 💻 [Download Node.js](https://nodejs.org/)
+   - *Why?* This runs the server code and the website on your machine.
+2. **MySQL Community Server**
+   - 💻 [Download MySQL Server](https://dev.mysql.com/downloads/mysql/)
+   - *Important!* During installation, you will be asked to set a **root password**. **Write this password down!** You will need it in Step 1.
+3. **Flutter SDK**
+   - 💻 [Download Flutter SDK](https://docs.flutter.dev/get-started/install)
+   - *Why?* Needed to build the Android `.apk` install package.
+4. **Git** (Optional)
+   - 💻 [Download Git](https://git-scm.com/) (helpful to clone the folders).
 
 ---
 
-## 🌐 Step 3: Run the React Website
+## 🗄️ Step 1: Set Up the MySQL Database
 
+We need to create a database and import the table structures.
+
+### 1.1 Start MySQL
+- Ensure your MySQL database service is running (on Windows, this is usually automatic. On macOS, you can start it from System Settings -> MySQL).
+
+### 1.2 Create and Import the Schema
+Choose **one** of the two methods below:
+
+#### Method A: Using a GUI Client (Recommended for Beginners)
+1. Install a free database viewer like **DBeaver** or **MySQL Workbench**.
+2. Connect to localhost using user `root` and the **password you created in Step 0**.
+3. Right-click your connection and select **Create New Database**. Name it `ttapp_db`.
+4. Open the SQL editor, copy the entire contents of the [schema.sql](file:///Users/karimshaikh/Desktop/ttapp-backend/schema.sql) file, paste them in, and click **Execute/Run**.
+
+#### Method B: Using the Terminal / Command Prompt
+Open your terminal/command line and run:
 ```bash
-# Navigate to website folder
-cd ttapp-web
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-✅ Website runs at: **http://localhost:5173**
-
----
-
-## 📱 Step 4: Build Android APK
-
-### 4.1 Update the API URL
-Open this file in the Flutter app:
-```
-ttapp/lib/core/constants/app_constants.dart
-```
-
-Change the `baseUrl` to point to your backend:
-```dart
-// For testing on emulator/Chrome:
-static const String baseUrl = 'http://localhost:3000/api';
-
-// For testing on a physical Android phone connected to same WiFi:
-// Find your computer's local IP (run: ipconfig or ifconfig)
-static const String baseUrl = 'http://192.168.x.x:3000/api'; // ← replace x.x with your IP
-```
-
-### 4.2 Build the APK
-```bash
-cd ttapp
-
-# Get Flutter dependencies
-flutter pub get
-
-# Build release APK
-flutter build apk --release
-```
-
-✅ APK file is at:
-```
-ttapp/build/app/outputs/flutter-apk/app-release.apk
-```
-
-Transfer this APK to any Android phone and install it.
-
----
-
-## 📁 Project Structure Reference
-
-```
-Desktop/
-├── ttapp/              → Flutter mobile app source code
-│   └── build/app/outputs/flutter-apk/app-release.apk  → Installable Android app
-│
-├── ttapp-backend/      → Backend API server
-│   ├── prisma/         → Database schema (Prisma)
-│   ├── src/            → Express.js routes & controllers
-│   ├── schema.sql      → ✅ Fresh SQL to create database tables
-│   ├── .env            → Database & server configuration
-│   └── SETUP_GUIDE.md  → ← This file
-│
-└── ttapp-web/          → React website source code
-    └── dist/           → Production build (ready to deploy)
-```
-
-## 🔄 Quick Start Summary
-
-```bash
-# 1. Create database
+# 1. Log in to MySQL and create the database (Enter your password when prompted)
 mysql -u root -p -e "CREATE DATABASE ttapp_db;"
 
-# 2. Import tables
-mysql -u root -p ttapp_db < ttapp-backend/schema.sql
-
-# 3. Start backend
-cd ttapp-backend && npm install && npm start
-
-# 4. Start website (new terminal)
-cd ttapp-web && npm install && npm run dev
-
-# 5. Build APK (new terminal)
-cd ttapp && flutter pub get && flutter build apk --release
+# 2. Import the tables directly from the schema.sql file
+mysql -u root -p ttapp_db < schema.sql
 ```
 
 ---
 
-## ❓ Troubleshooting
+## ⚙️ Step 2: Configure & Start the Backend API
 
-| Issue | Solution |
-|-------|----------|
-| `Can't connect to MySQL` | Make sure MySQL is running. Check `.env` DATABASE_URL has correct password. |
-| `Port 3000 already in use` | Change `PORT=3001` in `.env` and update the URL in Flutter/React configs. |
-| APK can't connect to backend | The phone needs to be on the same WiFi. Use your computer's LAN IP (not localhost). |
-| Website shows blank page | Check browser console for CORS errors. Ensure backend is running. |
+This connects the server code to your MySQL database.
+
+1. Open your terminal and navigate to the backend folder:
+   ```bash
+   cd ttapp-backend
+   ```
+2. Install the server dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up your configuration file:
+   - Duplicate/copy the file `.env.example` and rename it to `.env`.
+   - Open `.env` in a text editor (like Notepad or VS Code) and update the `DATABASE_URL` line:
+     ```env
+     DATABASE_URL="mysql://root:YOUR_MYSQL_PASSWORD_HERE@localhost:3306/ttapp_db"
+     JWT_SECRET="any_random_long_phrase_here_to_secure_tokens"
+     JWT_EXPIRES_IN="7d"
+     PORT=3000
+     NODE_ENV=development
+     ```
+     *(Be sure to replace `YOUR_MYSQL_PASSWORD_HERE` with your actual MySQL root password).*
+
+4. Start the backend server:
+   ```bash
+   npm start
+   ```
+   🚀 **Success Check:** You should see `Server is running on port 3000`. 
+   Open your browser and visit: `http://localhost:3000/api/timetable/slots`. If it returns some text/JSON, the backend is working perfectly!
+
+---
+
+## 🌐 Step 3: Run the Website (React Web Portal)
+
+This will launch the Web Admin Portal.
+
+1. Open a **new terminal window** (keep the backend server running!).
+2. Navigate to the web folder:
+   ```bash
+   cd ttapp-web
+   ```
+3. Install the dependencies:
+   ```bash
+   npm install
+   ```
+4. Start the local server:
+   ```bash
+   npm run dev
+   ```
+   🚀 **Success Check:** The terminal will show a link like `http://localhost:5173`. Open that link in your browser to view the administration portal login page.
+
+---
+
+## 📱 Step 4: Configure and Build the Android App (APK)
+
+To test the Flutter app on an Android device or emulator:
+
+### 4.1 Update the Backend Server URL
+We must tell the app where the backend is hosted. 
+1. Open this file in a text editor:
+   `ttapp/lib/core/constants/app_constants.dart`
+2. Update the `baseUrl` constant:
+   - **If testing on a computer emulator/simulator:**
+     ```dart
+     static const String baseUrl = 'http://localhost:3000/api';
+     ```
+   - **If testing on a real Android phone (Recommended):**
+     Your phone and computer must be on the **same Wi-Fi network**. Find your computer's local IP address (Windows: run `ipconfig`, Mac/Linux: run `ifconfig` or `ipconfig getifaddr en0`). 
+     Replace the IP below with yours:
+     ```dart
+     static const String baseUrl = 'http://192.168.1.100:3000/api'; // Replace with your IP!
+     ```
+
+### 4.2 Build the installable APK
+1. Open a **new terminal window**.
+2. Navigate to the app folder:
+   ```bash
+   cd ttapp
+   ```
+3. Fetch dependencies:
+   ```bash
+   flutter pub get
+   ```
+4. Run the release build command:
+   ```bash
+   flutter build apk --release
+   ```
+5. Once complete, you will find your installable file here:
+   📦 `ttapp/build/app/outputs/flutter-apk/app-release.apk`
+   
+   *Tip: Email this file to yourself or upload it to Google Drive to download and install it directly on any Android device.*
+
+---
+
+## 🛠️ Quick Troubleshooting Guide
+
+| Problem | Explanation | Fix |
+|:---|:---|:---|
+| **Database Connection Error** | The backend cannot talk to MySQL. | Open `.env` in `ttapp-backend`. Check that your database password matches your MySQL root password and that MySQL is running. |
+| **Port 3000 is already in use** | Another app is using port 3000. | Change `PORT=3001` in your `.env` file, restart the server, and update the Flutter/React API endpoints. |
+| **App won't load data / loading spinner** | The phone cannot connect to your PC's backend. | 1. Ensure the phone and PC are on the *exact* same Wi-Fi connection.<br>2. Double check that you replaced the local IP in `app_constants.dart` with your PC's real IP, not `localhost`. |
+| **Blank Web Portal screen** | React website cannot fetch resources. | Ensure the backend API is active and running in its own terminal window. |
