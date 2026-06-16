@@ -1102,7 +1102,7 @@ async function validateMove(lecture, targetSlot, excludeIds) {
       startTimeMinutes: targetSlot.startTimeMinutes,
     });
     if (conflict) {
-      throw new Error(`Faculty conflict: ${lecture.faculty_name || 'Teacher'} is already assigned at ${targetSlot.timetable.dateOfWeek} ${targetSlot.startTimeDisplay || (targetSlot.startTimeHr.toString().padLeft(2, '0') + ':' + targetSlot.startTimeMinutes.toString().padLeft(2, '0'))}`);
+      throw new Error(`Faculty conflict: ${lecture.faculty_name || 'Teacher'} is already assigned at ${targetSlot.timetable.dateOfWeek} ${targetSlot.startTimeDisplay || (targetSlot.startTimeHr.toString().padStart(2, '0') + ':' + targetSlot.startTimeMinutes.toString().padStart(2, '0'))}`);
     }
   }
   if (normalizeRoomNumber(lecture.room_number)) {
@@ -1114,7 +1114,7 @@ async function validateMove(lecture, targetSlot, excludeIds) {
       startTimeMinutes: targetSlot.startTimeMinutes,
     });
     if (conflict) {
-      throw new Error(`Room conflict: Room ${lecture.room_number} is already occupied at ${targetSlot.timetable.dateOfWeek} ${targetSlot.startTimeDisplay || (targetSlot.startTimeHr.toString().padLeft(2, '0') + ':' + targetSlot.startTimeMinutes.toString().padLeft(2, '0'))}`);
+      throw new Error(`Room conflict: Room ${lecture.room_number} is already occupied at ${targetSlot.timetable.dateOfWeek} ${targetSlot.startTimeDisplay || (targetSlot.startTimeHr.toString().padStart(2, '0') + ':' + targetSlot.startTimeMinutes.toString().padStart(2, '0'))}`);
     }
   }
 }
